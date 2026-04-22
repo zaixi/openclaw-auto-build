@@ -2,8 +2,8 @@ name: Check Upstream Release
 
 on:
   schedule:
-    # 每小时检查一次上游更新
-    - cron: '0 * * * *'
+    # 每6小时检查一次上游更新
+    - cron: '0 */6 * * *'
   workflow_dispatch:
 
 jobs:
