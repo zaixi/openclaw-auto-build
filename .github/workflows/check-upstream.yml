@@ -2,7 +2,7 @@ name: Check Upstream Release
 
 on:
   schedule:
-    # 每小时检查一次上游更新（比每天更及时）
+    # 每小时检查一次上游更新
     - cron: '0 * * * *'
   workflow_dispatch:
 
@@ -23,7 +23,7 @@ jobs:
           UPSTREAM_VERSION=$(curl -s https://api.github.com/repos/openclaw/openclaw/releases/latest | jq -r '.tag_name')
           echo "Upstream latest: $UPSTREAM_VERSION"
           
-          # 读取本地缓存的版本（如果没有则设为空）
+          # 读取本地缓存的版本
           CACHED_VERSION=""
           if [ -f .upstream-version ]; then
             CACHED_VERSION=$(cat .upstream-version)
@@ -33,12 +33,12 @@ jobs:
           # 比较
           if [ "$UPSTREAM_VERSION" != "$CACHED_VERSION" ] && [ -n "$UPSTREAM_VERSION" ]; then
             echo "has_update=true"
-            echo "new_version=$UPSTREAM_VERSION"
-            echo "$UPSTREAM_VERSION" > .upstream-version
+            echo "new_version=${UPSTREAM_VERSION#v}" >> $GITHUB_OUTPUT
+            echo "${UPSTREAM_VERSION#v}" > .upstream-version
           else
             echo "has_update=false"
-            echo "new_version=$UPSTREAM_VERSION"
-            echo "$UPSTREAM_VERSION" > .upstream-version
+            echo "new_version=${UPSTREAM_VERSION#v}" >> $GITHUB_OUTPUT
+            echo "${UPSTREAM_VERSION#v}" > .upstream-version
           fi
 
       - name: Trigger build on new version
