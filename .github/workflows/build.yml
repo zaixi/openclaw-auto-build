@@ -13,6 +13,7 @@ on:
 env:
   REGISTRY: docker.io
   IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/openclaw-custom
+  APT_PACKAGES: git curl jq ffmpeg
 
 jobs:
   build:
@@ -34,25 +35,23 @@ jobs:
       - name: Fetch latest version
         id: version
         run: |
-          # 从上游获取最新 release 版本号
           UPSTREAM_VERSION=$(curl -s https://api.github.com/repos/openclaw/openclaw/releases/latest | jq -r '.tag_name // "latest"')
           echo "VERSION=${UPSTREAM_VERSION#v}" >> $GITHUB_OUTPUT
           echo "Full tag: $UPSTREAM_VERSION"
 
-      - name: Print build info
+      - name: Clone openclaw source
         run: |
-          echo "Building openclaw-custom:${{ steps.version.outputs.VERSION }}"
-          echo "Base: ghcr.io/openclaw/openclaw:${{ steps.version.outputs.VERSION }}"
+          git clone --depth 1 --branch ${{ steps.version.outputs.VERSION }} \
+            https://github.com/openclaw/openclaw.git openclaw-source
 
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: ./openclaw-source
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           build-args: |
-            OPENCLAW_BASE_TAG=${{ steps.version.outputs.VERSION }}
-            OPENCLAW_DOCKER_APT_PACKAGES=git curl jq ffmpeg
+            OPENCLAW_DOCKER_APT_PACKAGES=${{ env.APT_PACKAGES }}
             OPENCLAW_EXTENSIONS=
