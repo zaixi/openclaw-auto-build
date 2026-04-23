@@ -50,12 +50,13 @@ jobs:
 
       - name: Clone openclaw source
         run: |
+          # VERSION 去掉了 v 前缀，tag 要拼回去
           UPSTREAM_VERSION=${{ steps.version.outputs.VERSION }}
           git clone --depth 1 \
             https://github.com/openclaw/openclaw.git openclaw-source
           cd openclaw-source
-          git fetch --tags --depth 1 origin tag ${UPSTREAM_VERSION}
-          git checkout ${UPSTREAM_VERSION}
+          git fetch --tags --depth 1 origin tag v${UPSTREAM_VERSION}
+          git checkout v${UPSTREAM_VERSION}
 
       - name: Build and push
         uses: docker/build-push-action@v5
