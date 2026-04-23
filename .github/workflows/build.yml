@@ -54,3 +54,5 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           build-args: |
             OPENCLAW_BASE_TAG=${{ steps.version.outputs.VERSION }}
+            OPENCLAW_DOCKER_APT_PACKAGES=git curl jq ffmpeg
+            OPENCLAW_EXTENSIONS=

@@ -26,13 +26,19 @@
 
 ### 3. 自定义包（可选）
 
-编辑 `Dockerfile`，在 `apt-get install` 那里添加你需要的包：
+编辑 `Dockerfile`，通过构建参数添加你需要的包和扩展：
 
 ```dockerfile
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git curl jq ffmpeg \
-    && rm -rf /var/lib/apt/lists/*
+ARG OPENCLAW_DOCKER_APT_PACKAGES="git curl jq ffmpeg"
+ARG OPENCLAW_EXTENSIONS=""
 ```
+
+| 参数 | 说明 |
+|------|------|
+| `OPENCLAW_DOCKER_APT_PACKAGES` | 额外的 apt 包（空格分隔），如 `git curl jq ffmpeg` |
+| `OPENCLAW_EXTENSIONS` | 预装的扩展名（空格分隔），如 `openclaw-tavily openclaw-qqbot` |
+
+这些参数由官方镜像在构建时处理，比直接 apt-get 更简洁。
 
 ### 4. 启用 Action
 
