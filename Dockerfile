@@ -12,7 +12,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 # 安装额外工具
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    tzdata \
     bash \
     build-essential \
     ca-certificates \
@@ -24,19 +23,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-noto-color-emoji \
     git \
     gosu \
+    gnupg \
     jq \
     locales \
     openssh-client \
     procps \
+    python3 \
+    python3-pip \
+    python3-venv \
+    socat \
+    tini \
     unzip \
     docker-ce-cli \
-    docker-compose-plugin && \
-    ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
-    printf 'Asia/Shanghai\n' > /etc/timezone && \
+    docker-compose-plugin \
+    tzdata && \
     sed -i 's/^# *en_US.UTF-8 UTF-8$/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
     locale-gen && \
     printf 'LANG=en_US.UTF-8\nLANGUAGE=en_US:en\nLC_ALL=en_US.UTF-8\n' > /etc/default/locale && \
+    ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    printf 'Asia/Shanghai\n' > /etc/timezone && \
     git config --system url."https://github.com/".insteadOf ssh://git@github.com/ && \
+    ln -sf /usr/bin/python3 /usr/local/bin/python && \
     rm -rf /var/lib/apt/lists/*
 
 # 全局 Node 工具
