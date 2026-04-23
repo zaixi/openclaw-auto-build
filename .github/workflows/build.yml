@@ -12,7 +12,7 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/openclaw-custom
+  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/openclaw
   APT_PACKAGES: git curl jq ffmpeg
 
 jobs:
