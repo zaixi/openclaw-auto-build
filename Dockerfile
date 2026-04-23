@@ -7,10 +7,12 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LANG=en_US.UTF-8 \
     LANGUAGE=en_US:en \
     LC_ALL=en_US.UTF-8 \
+    TZ=Asia/Shanghai \
     PLAYWRIGHT_BROWSERS_PATH=/home/node/.cache/ms-playwright
 
 # 安装额外工具
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    tzdata \
     bash \
     build-essential \
     ca-certificates \
@@ -29,6 +31,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     docker-ce-cli \
     docker-compose-plugin && \
+    ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    printf 'Asia/Shanghai\n' > /etc/timezone && \
     sed -i 's/^# *en_US.UTF-8 UTF-8$/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
     locale-gen && \
     printf 'LANG=en_US.UTF-8\nLANGUAGE=en_US:en\nLC_ALL=en_US.UTF-8\n' > /etc/default/locale && \
