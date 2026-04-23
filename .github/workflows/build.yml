@@ -30,9 +30,11 @@ jobs:
           APT_PACKAGES=$(grep '^OPENCLAW_DOCKER_APT_PACKAGES=' build.conf | cut -d'"' -f2)
           EXTENSIONS=$(grep '^OPENCLAW_EXTENSIONS=' build.conf | cut -d'"' -f2)
           DOCKER_CLI=$(grep '^OPENCLAW_INSTALL_DOCKER_CLI=' build.conf | cut -d'"' -f2)
+          BROWSER=$(grep '^OPENCLAW_INSTALL_BROWSER=' build.conf | cut -d'"' -f2)
           echo "APT_PACKAGES=${APT_PACKAGES}" >> $GITHUB_OUTPUT
           echo "EXTENSIONS=${EXTENSIONS}" >> $GITHUB_OUTPUT
           echo "DOCKER_CLI=${DOCKER_CLI}" >> $GITHUB_OUTPUT
+          echo "BROWSER=${BROWSER}" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -79,6 +81,7 @@ jobs:
             OPENCLAW_DOCKER_APT_PACKAGES=${{ steps.config.outputs.APT_PACKAGES }}
             OPENCLAW_EXTENSIONS=${{ steps.config.outputs.EXTENSIONS }}
             OPENCLAW_INSTALL_DOCKER_CLI=${{ steps.config.outputs.DOCKER_CLI }}
+            OPENCLAW_INSTALL_BROWSER=${{ steps.config.outputs.BROWSER }}
 
       - name: Build and push to GitHub Container Registry
         uses: docker/build-push-action@v5
@@ -92,3 +95,4 @@ jobs:
             OPENCLAW_DOCKER_APT_PACKAGES=${{ steps.config.outputs.APT_PACKAGES }}
             OPENCLAW_EXTENSIONS=${{ steps.config.outputs.EXTENSIONS }}
             OPENCLAW_INSTALL_DOCKER_CLI=${{ steps.config.outputs.DOCKER_CLI }}
+            OPENCLAW_INSTALL_BROWSER=${{ steps.config.outputs.BROWSER }}
