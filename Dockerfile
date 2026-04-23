@@ -8,7 +8,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LANGUAGE=en_US:en \
     LC_ALL=en_US.UTF-8 \
     TZ=Asia/Shanghai \
-    PLAYWRIGHT_BROWSERS_PATH=/home/node/.cache/ms-playwright
+    PLAYWRIGHT_BROWSERS_PATH=/home/node/.cache/ms-playwright \
+    NPM_CONFIG_REGISTRY=https://registry.npmmirror.com
 
 # 安装额外工具
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -46,8 +47,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ln -sf /usr/bin/python3 /usr/local/bin/python && \
     rm -rf /var/lib/apt/lists/*
 
-# 全局 Node 工具
-RUN npm install -g \
+# 全局 Node 工具（使用 npmmirror 镜像加速）
+RUN npm config set registry https://registry.npmmirror.com && \
+    npm install -g \
     clawhub \
     playwright \
     playwright-extra \
