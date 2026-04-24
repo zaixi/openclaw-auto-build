@@ -1,16 +1,20 @@
-name: Build and Push Custom OpenClaw Image
+name: Build and Push OpenClaw Image
 
 on:
   schedule:
-    # 每天检查一次更新
-    - cron: '0 2 * * *'
-  # 也支持手动触发
+    # 每6小时检查一次上游更新，有更新才构建
+    - cron: '0 */6 * * *'
+  # 支持手动触发（可指定版本，留空则自动检测）
   workflow_dispatch:
     inputs:
       version:
-        description: 'OpenClaw version to build (e.g. v1.2.3), leave empty to auto-detect latest'
+        description: 'OpenClaw version to build (e.g. 1.2.3), leave empty to auto-detect latest'
         required: false
-  # 监听上游新 release 就触发
+      force:
+        description: 'Force build even if Docker Hub is up-to-date'
+        required: false
+        default: 'false'
+  # 监听上游新 release 事件
   repository_dispatch:
     types: [upstream-release]
 
@@ -21,7 +25,65 @@ env:
   GHCR_IMAGE_NAME: ${{ github.repository_owner }}/openclaw
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.check.outputs.new_version }}
+      has_update: ${{ steps.check.outputs.has_update }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check version
+        id: check
+        run: |
+          # 获取上游最新版本
+          UPSTREAM_VERSION=$(curl -s https://api.github.com/repos/openclaw/openclaw/releases/latest | jq -r '.tag_name')
+          echo "Upstream latest: $UPSTREAM_VERSION"
+          UPSTREAM_VERSION_NUM=${UPSTREAM_VERSION#v}
+
+          # 手动指定版本时直接跳过检查
+          if [ -n "${{ inputs.version }}" ]; then
+            echo "Manually specified version: ${{ inputs.version }}"
+            echo "has_update=true"
+            echo "new_version=${{ inputs.version }}" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # 强制构建时跳过检查
+          if [ "${{ inputs.force }}" = "true" ]; then
+            echo "Force build enabled"
+            echo "has_update=true"
+            echo "new_version=${UPSTREAM_VERSION_NUM}" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # 读取 Docker Hub 上已发布的最新版本
+          DH_VERSION=$(curl -s "https://registry.hub.docker.com/v2/repositories/${{ secrets.DOCKERHUB_USERNAME }}/openclaw/tags?page_size=100" | \
+            jq -r '.results[].name' | grep -v '^latest$' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | \
+            sort -V | tail -1)
+          echo "Docker Hub latest: $DH_VERSION"
+
+          # 比较：Docker Hub 版本低于上游最新时需要构建
+          if [ "$(printf '%s\n' "${DH_VERSION:-0.0.0}" "${UPSTREAM_VERSION_NUM}" | sort -V | head -n1)" != "${UPSTREAM_VERSION_NUM}" ] && [ -n "${UPSTREAM_VERSION_NUM}" ]; then
+            echo "has_update=true"
+            echo "new_version=${UPSTREAM_VERSION_NUM}" >> $GITHUB_OUTPUT
+          else
+            echo "has_update=false"
+            echo "new_version=${UPSTREAM_VERSION_NUM}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Report
+        run: |
+          if [ "${{ steps.check.outputs.has_update }}" = "true" ]; then
+            echo "Update available: ${{ steps.check.outputs.new_version }} → will build"
+          else
+            echo "Already up-to-date, skipping build"
+          fi
+
   build:
+    needs: check
+    if: needs.check.outputs.has_update == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -44,16 +106,11 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GHCR_PAT }}
 
-      - name: Fetch latest version
-        id: version
+      - name: Set version
         run: |
-          if [ -n "${{ inputs.version }}" ]; then
-            echo "VERSION=${{ inputs.version }}" >> $GITHUB_OUTPUT
-          else
-            UPSTREAM_VERSION=$(curl -s https://api.github.com/repos/openclaw/openclaw/releases/latest | jq -r '.tag_name // "latest"')
-            echo "VERSION=${UPSTREAM_VERSION#v}" >> $GITHUB_OUTPUT
-          fi
-          echo "Building version: ${{ steps.version.outputs.VERSION }}"
+          VERSION="${{ needs.check.outputs.new_version }}"
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION"
 
       - name: Build and push to Docker Hub
         uses: docker/build-push-action@v5
@@ -61,7 +118,7 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.check.outputs.new_version }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
       - name: Build and push to GitHub Container Registry
@@ -70,5 +127,5 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}
-            ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_IMAGE_NAME }}:latest
+            ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_IMAGE_NAME }}:${{ needs.check.outputs.new_version }}
+            ${{ env.GHCR_IMAGE_NAME }}:latest
