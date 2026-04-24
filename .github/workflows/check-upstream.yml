@@ -22,23 +22,20 @@ jobs:
           # 获取上游最新版本
           UPSTREAM_VERSION=$(curl -s https://api.github.com/repos/openclaw/openclaw/releases/latest | jq -r '.tag_name')
           echo "Upstream latest: $UPSTREAM_VERSION"
-          
-          # 读取本地缓存的版本
-          CACHED_VERSION=""
-          if [ -f .upstream-version ]; then
-            CACHED_VERSION=$(cat .upstream-version)
-          fi
-          echo "Cached version: $CACHED_VERSION"
-          
-          # 比较
-          if [ "$UPSTREAM_VERSION" != "$CACHED_VERSION" ] && [ -n "$UPSTREAM_VERSION" ]; then
+
+          # 读取 Docker Hub 上已发布的最新版本
+          DH_VERSION=$(curl -s "https://registry.hub.docker.com/v2/repositories/${{ secrets.DOCKERHUB_USERNAME }}/openclaw/tags?page_size=100" | \
+            jq -r '.results[].name' | grep -v '^latest$' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | \
+            sort -V | tail -1)
+          echo "Docker Hub latest: $DH_VERSION"
+
+          # 比较 Docker Hub 版本与上游最新版本
+          if [ "$(printf '%s\n' "$DH_VERSION" "$UPSTREAM_VERSION" | sort -V | head -n1)" != "$UPSTREAM_VERSION" ] && [ -n "$UPSTREAM_VERSION" ]; then
             echo "has_update=true"
             echo "new_version=${UPSTREAM_VERSION#v}" >> $GITHUB_OUTPUT
-            echo "${UPSTREAM_VERSION#v}" > .upstream-version
           else
             echo "has_update=false"
             echo "new_version=${UPSTREAM_VERSION#v}" >> $GITHUB_OUTPUT
-            echo "${UPSTREAM_VERSION#v}" > .upstream-version
           fi
 
       - name: Trigger build on new version
@@ -49,6 +46,6 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/repos/zaixi/openclaw-auto-build/actions/workflows/build.yml/dispatches \
-            -d '{"ref":"main"}'
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/build.yml/dispatches \
+            -d '{"ref":"main","inputs":{"version":"${{ steps.check.outputs.new_version }}"}}'
           echo "Build triggered!"

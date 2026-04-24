@@ -6,6 +6,10 @@ on:
     - cron: '0 2 * * *'
   # 也支持手动触发
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'OpenClaw version to build (e.g. v1.2.3), leave empty to auto-detect latest'
+        required: false
   # 监听上游新 release 就触发
   repository_dispatch:
     types: [upstream-release]
@@ -43,9 +47,13 @@ jobs:
       - name: Fetch latest version
         id: version
         run: |
-          UPSTREAM_VERSION=$(curl -s https://api.github.com/repos/openclaw/openclaw/releases/latest | jq -r '.tag_name // "latest"')
-          echo "VERSION=${UPSTREAM_VERSION#v}" >> $GITHUB_OUTPUT
-          echo "Full tag: $UPSTREAM_VERSION"
+          if [ -n "${{ inputs.version }}" ]; then
+            echo "VERSION=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            UPSTREAM_VERSION=$(curl -s https://api.github.com/repos/openclaw/openclaw/releases/latest | jq -r '.tag_name // "latest"')
+            echo "VERSION=${UPSTREAM_VERSION#v}" >> $GITHUB_OUTPUT
+          fi
+          echo "Building version: ${{ steps.version.outputs.VERSION }}"
 
       - name: Build and push to Docker Hub
         uses: docker/build-push-action@v5
