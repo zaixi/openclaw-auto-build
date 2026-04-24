@@ -8,8 +8,6 @@ ARG OPENCLAW_APT_PACKAGES=""
 ARG OPENCLAW_NPM_PACKAGES=""
 ARG OPENCLAW_PIP_PACKAGES=""
 ARG OPENCLAW_EXTENSIONS=""
-ARG OPENCLAW_INSTALL_DOCKER_CLI="0"
-ARG OPENCLAW_INSTALL_BROWSER="0"
 ARG OPENCLAW_NPM_REGISTRY=""
 ARG OPENCLAW_PIP_INDEX_URL=""
 
@@ -27,8 +25,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # ──────────────── apt + pip + npm（统一层）────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ${OPENCLAW_APT_PACKAGES} \
-        ${OPENCLAW_INSTALL_DOCKER_CLI:+docker-ce-cli docker-compose-plugin} \
-        ${OPENCLAW_INSTALL_BROWSER:+chromium} \
     && sed -i 's/^# *en_US.UTF-8 UTF-8$/en_US.UTF-8 UTF-8/' /etc/locale.gen \
     && locale-gen \
     && printf 'LANG=en_US.UTF-8\nLANGUAGE=en_US:en\nLC_ALL=en_US.UTF-8\n' > /etc/default/locale \
