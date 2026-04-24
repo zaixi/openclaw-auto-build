@@ -24,7 +24,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     NPM_CONFIG_REGISTRY="${OPENCLAW_NPM_REGISTRY:-https://registry.npmmirror.com}" \
     PIP_INDEX_URL="${OPENCLAW_PIP_INDEX_URL:-https://pypi.npmmirror.com}"
 
-# ──────────────── 统一安装层 ────────────────
+# ──────────────── apt + pip + npm（统一层）────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ${OPENCLAW_APT_PACKAGES} \
         ${OPENCLAW_INSTALL_DOCKER_CLI:+docker-ce-cli docker-compose-plugin} \
@@ -36,19 +36,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && printf 'Asia/Shanghai\n' > /etc/timezone \
     && git config --system url."https://github.com/".insteadOf ssh://git@github.com/ \
     && ln -sf /usr/bin/python3 /usr/local/bin/python \
-    && rm -rf /var/lib/apt/lists/*
-
-# ──────────────── pip 包 ────────────────
-RUN if [ -n "${OPENCLAW_PIP_PACKAGES}" ]; then \
+    && rm -rf /var/lib/apt/lists/* \
+    && if [ -n "${OPENCLAW_PIP_PACKAGES}" ]; then \
         pip3 config set global.index-url "${PIP_INDEX_URL:-https://pypi.npmmirror.com}" \
         && pip3 install ${OPENCLAW_PIP_PACKAGES} \
         && pip cache purge; \
-    fi
-
-# ──────────────── npm 全局包 ────────────────
-RUN if [ -n "${OPENCLAW_NPM_REGISTRY}" ]; then \
-        npm config set registry "${OPENCLAW_NPM_REGISTRY}"; \
     fi \
+    && if [ -n "${OPENCLAW_NPM_REGISTRY}" ]; then npm config set registry "${OPENCLAW_NPM_REGISTRY}"; fi \
     && if [ -n "${OPENCLAW_NPM_PACKAGES}" ]; then \
         npm install -g ${OPENCLAW_NPM_PACKAGES} \
         && npm cache clean --force; \
