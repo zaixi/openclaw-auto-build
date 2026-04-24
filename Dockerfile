@@ -37,7 +37,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && if [ -n "${OPENCLAW_PIP_PACKAGES}" ]; then \
         pip3 config set global.index-url "${PIP_INDEX_URL:-https://pypi.npmmirror.com}" \
-        && pip3 install ${OPENCLAW_PIP_PACKAGES} \
+        && pip3 install --break-system-packages ${OPENCLAW_PIP_PACKAGES} \
         && pip cache purge; \
     fi \
     && if [ -n "${OPENCLAW_NPM_REGISTRY}" ]; then npm config set registry "${OPENCLAW_NPM_REGISTRY}"; fi \
