@@ -37,49 +37,63 @@ jobs:
       - name: Check version
         id: check
         run: |
+          python3 << 'PYEOF'
+          import urllib.request, json, os
+
           # 获取上游最新版本
-          UPSTREAM_VERSION=$(curl -s https://api.github.com/repos/openclaw/openclaw/releases/latest | jq -r '.tag_name')
-          echo "Upstream latest: $UPSTREAM_VERSION"
-          UPSTREAM_VERSION_NUM=${UPSTREAM_VERSION#v}
+          try:
+              with urllib.request.urlopen('https://api.github.com/repos/openclaw/openclaw/releases/latest', timeout=10) as r:
+                  upstream = json.loads(r.read())['tag_name'].lstrip('v')
+          except Exception as e:
+              print(f'Failed to fetch upstream: {e}', flush=True)
+              exit(1)
+          print(f'Upstream latest: {upstream}', flush=True)
 
           # 手动指定版本时直接跳过检查
-          if [ -n "${{ inputs.version }}" ]; then
-            echo "Manually specified version: ${{ inputs.version }}"
-            echo "has_update=true"
-            echo "new_version=${{ inputs.version }}" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          # 强制构建时跳过检查
-          if [ "${{ inputs.force }}" = "true" ]; then
-            echo "Force build enabled"
-            echo "has_update=true"
-            echo "new_version=${UPSTREAM_VERSION_NUM}" >> $GITHUB_OUTPUT
-            exit 0
-          fi
+          version_input = os.getenv('INPUT_VERSION', '')
+          force = os.getenv('INPUT_FORCE', 'false')
+          if version_input:
+              print(f'Manually specified version: {version_input}', flush=True)
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                  f.write(f'has_update=true\nnew_version={version_input}\n')
+              exit(0)
+          if force == 'true':
+              print('Force build enabled', flush=True)
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                  f.write(f'has_update=true\nnew_version={upstream}\n')
+              exit(0)
 
           # 读取 Docker Hub 上已发布的最新版本
-          DH_VERSION=$(curl -s "https://registry.hub.docker.com/v2/repositories/${{ secrets.DOCKERHUB_USERNAME }}/openclaw/tags?page_size=100" | \
-            jq -r '.results[].name' | grep -v '^latest$' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | \
-            sort -V | tail -1)
-          echo "Docker Hub latest: $DH_VERSION"
+          dh_version = '0.0.0'
+          try:
+              req = urllib.request.Request(
+                  'https://registry.hub.docker.com/v2/repositories/${{ secrets.DOCKERHUB_USERNAME }}/openclaw/tags?page_size=100',
+                  headers={'Accept': 'application/json'}
+              )
+              with urllib.request.urlopen(req, timeout=10) as r:
+                  data = json.loads(r.read())
+                  tags = [t['name'] for t in data.get('results', []) if t['name'] != 'latest']
+                  # 过滤有效 semver
+                  semver_tags = [t for t in tags if t.count('.') >= 2 and t.replace('.','').replace('-','').isalnum()]
+                  if semver_tags:
+                      semver_tags.sort(key=lambda x: [int(p) for p in x.split('.') if p.isdigit()])
+                      dh_version = semver_tags[-1]
+          except Exception as e:
+              print(f'Docker Hub API error (assuming empty): {e}', flush=True)
+          print(f'Docker Hub latest: {dh_version}', flush=True)
 
-          # 比较：Docker Hub 版本低于上游最新时需要构建
-          if [ "$(printf '%s\n' "${DH_VERSION:-0.0.0}" "${UPSTREAM_VERSION_NUM}" | sort -V | head -n1)" != "${UPSTREAM_VERSION_NUM}" ] && [ -n "${UPSTREAM_VERSION_NUM}" ]; then
-            echo "has_update=true"
-            echo "new_version=${UPSTREAM_VERSION_NUM}" >> $GITHUB_OUTPUT
-          else
-            echo "has_update=false"
-            echo "new_version=${UPSTREAM_VERSION_NUM}" >> $GITHUB_OUTPUT
-          fi
+          # 比较版本：需要构建当且仅当 Docker Hub 版本 < 上游版本
+          def parse_ver(v):
+              return [int(p) for p in v.split('.') if p.isdigit()]
+          has_update = parse_ver(dh_version) < parse_ver(upstream)
+          print(f'has_update={str(has_update).lower()}', flush=True)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f'has_update={str(has_update).lower()}\nnew_version={upstream}\n')
+          PYEOF
 
       - name: Report
         run: |
-          if [ "${{ steps.check.outputs.has_update }}" = "true" ]; then
-            echo "Update available: ${{ steps.check.outputs.new_version }} → will build"
-          else
-            echo "Already up-to-date, skipping build"
-          fi
+          echo "${{ steps.check.outputs.has_update == 'true' && format('Update available: {0} → will build', steps.check.outputs.new_version) || 'Already up-to-date, skipping build' }}"
 
   build:
     needs: check
@@ -105,12 +119,6 @@ jobs:
           registry: ${{ env.GHCR_REGISTRY }}
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GHCR_PAT }}
-
-      - name: Set version
-        run: |
-          VERSION="${{ needs.check.outputs.new_version }}"
-          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
-          echo "Building version: $VERSION"
 
       - name: Build and push to Docker Hub
         uses: docker/build-push-action@v5
