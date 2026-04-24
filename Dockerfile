@@ -20,7 +20,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PLAYWRIGHT_BROWSERS_PATH=/home/node/.cache/ms-playwright \
     OPENCLAW_EXTENSIONS="${OPENCLAW_EXTENSIONS}" \
     NPM_CONFIG_REGISTRY="${OPENCLAW_NPM_REGISTRY:-https://registry.npmmirror.com}" \
-    PIP_INDEX_URL="${OPENCLAW_PIP_INDEX_URL:-https://pypi.npmmirror.com}"
+    PIP_INDEX_URL="${OPENCLAW_PIP_INDEX_URL:-https://pypi.npmmirror.com}" \
+    NODE_PATH=/usr/local/lib/node_modules \
+    PATH="/usr/local/bin:/usr/local/lib/node_modules/.bin:${PATH}"
 
 # ──────────────── apt + pip + npm（统一层）────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
