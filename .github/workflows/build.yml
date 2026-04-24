@@ -140,6 +140,7 @@ jobs:
             OPENCLAW_EXTENSIONS=${{ steps.conf.outputs.OPENCLAW_EXTENSIONS }}
             OPENCLAW_NPM_REGISTRY=${{ steps.conf.outputs.OPENCLAW_NPM_REGISTRY }}
             OPENCLAW_PIP_INDEX_URL=${{ steps.conf.outputs.OPENCLAW_PIP_INDEX_URL }}
+            OPENCLAW_INSTALL_DOCKER_CLI=${{ steps.conf.outputs.OPENCLAW_INSTALL_DOCKER_CLI }}
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -162,3 +163,4 @@ jobs:
             OPENCLAW_EXTENSIONS=${{ steps.conf.outputs.OPENCLAW_EXTENSIONS }}
             OPENCLAW_NPM_REGISTRY=${{ steps.conf.outputs.OPENCLAW_NPM_REGISTRY }}
             OPENCLAW_PIP_INDEX_URL=${{ steps.conf.outputs.OPENCLAW_PIP_INDEX_URL }}
+            OPENCLAW_INSTALL_DOCKER_CLI=${{ steps.conf.outputs.OPENCLAW_INSTALL_DOCKER_CLI }}

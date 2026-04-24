@@ -10,6 +10,7 @@ ARG OPENCLAW_PIP_PACKAGES=""
 ARG OPENCLAW_EXTENSIONS=""
 ARG OPENCLAW_NPM_REGISTRY=""
 ARG OPENCLAW_PIP_INDEX_URL=""
+ARG OPENCLAW_INSTALL_DOCKER_CLI=""
 
 # ──────────────── 环境变量 ────────────────
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -23,6 +24,20 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PIP_INDEX_URL="${OPENCLAW_PIP_INDEX_URL:-https://pypi.npmmirror.com}" \
     NODE_PATH=/usr/local/lib/node_modules \
     PATH="/usr/local/bin:/usr/local/lib/node_modules/.bin:${PATH}"
+
+# ──────────────── Docker CLI apt 源（来自 build.conf）────────────────
+ARG OPENCLAW_INSTALL_DOCKER_CLI=""
+RUN if [ -n "${OPENCLAW_INSTALL_DOCKER_CLI}" ]; then \
+        apt-get update && apt-get install -y --no-install-recommends ca-certificates curl gnupg && \
+        curl -fsSL https://download.docker.com/linux/debian/gpg -o /tmp/docker.gpg.asc && \
+        gpg --dearmor -o /etc/apt/keyrings/docker.gpg /tmp/docker.gpg.asc && \
+        rm -f /tmp/docker.gpg.asc && \
+        chmod a+r /etc/apt/keyrings/docker.gpg && \
+        printf 'deb [arch=%s signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian bookworm stable\n' \
+            "$(dpkg --print-architecture)" > /etc/apt/sources.list.d/docker.list && \
+        apt-get update && \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends docker-ce-cli docker-compose-plugin; \
+    fi
 
 # ──────────────── apt + pip + npm（统一层）────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
