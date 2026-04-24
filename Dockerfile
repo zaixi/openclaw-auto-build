@@ -20,6 +20,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LC_ALL=en_US.UTF-8 \
     TZ=Asia/Shanghai \
     PLAYWRIGHT_BROWSERS_PATH=/home/node/.cache/ms-playwright \
+    OPENCLAW_EXTENSIONS="${OPENCLAW_EXTENSIONS}" \
     NPM_CONFIG_REGISTRY="${OPENCLAW_NPM_REGISTRY:-https://registry.npmmirror.com}" \
     PIP_INDEX_URL="${OPENCLAW_PIP_INDEX_URL:-https://pypi.npmmirror.com}"
 
@@ -50,14 +51,6 @@ RUN if [ -n "${OPENCLAW_NPM_REGISTRY}" ]; then \
     fi \
     && if [ -n "${OPENCLAW_NPM_PACKAGES}" ]; then \
         npm install -g ${OPENCLAW_NPM_PACKAGES} \
-        && npm cache clean --force; \
-    fi
-
-# ──────────────── 预装扩展 ────────────────
-RUN if [ -n "${OPENCLAW_EXTENSIONS}" ]; then \
-        for ext in ${OPENCLAW_EXTENSIONS}; do \
-            openclaw extension install "$ext" || true; \
-        done \
         && npm cache clean --force; \
     fi
 
