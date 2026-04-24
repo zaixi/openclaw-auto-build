@@ -73,7 +73,6 @@ jobs:
               with urllib.request.urlopen(req, timeout=10) as r:
                   data = json.loads(r.read())
                   tags = [t['name'] for t in data.get('results', []) if t['name'] != 'latest']
-                  # 过滤有效 semver
                   semver_tags = [t for t in tags if t.count('.') >= 2 and t.replace('.','').replace('-','').isalnum()]
                   if semver_tags:
                       semver_tags.sort(key=lambda x: [int(p) for p in x.split('.') if p.isdigit()])
@@ -82,7 +81,6 @@ jobs:
               print(f'Docker Hub API error (assuming empty): {e}', flush=True)
           print(f'Docker Hub latest: {dh_version}', flush=True)
 
-          # 比较版本：需要构建当且仅当 Docker Hub 版本 < 上游版本
           def parse_ver(v):
               return [int(p) for p in v.split('.') if p.isdigit()]
           has_update = parse_ver(dh_version) < parse_ver(upstream)
@@ -103,6 +101,24 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Read build.conf
+        id: conf
+        run: |
+          python3 << 'PYEOF'
+          import re, os
+          with open('build.conf') as f:
+              for line in f:
+                  line = line.strip()
+                  if not line or line.startswith('#'):
+                      continue
+                  m = re.match(r'^(OPENCLAW_[A-Z_]+)="(.*)"$', line)
+                  if m:
+                      key, val = m.group(1), m.group(2).strip()
+                      with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+                          out.write(f'{key}={val}\n')
+                      print(f'{key}={val}')
+          PYEOF
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -128,6 +144,13 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.check.outputs.new_version }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          build-args: |
+            OPENCLAW_APT_PACKAGES=${{ steps.conf.outputs.OPENCLAW_APT_PACKAGES }}
+            OPENCLAW_NPM_PACKAGES=${{ steps.conf.outputs.OPENCLAW_NPM_PACKAGES }}
+            OPENCLAW_PIP_PACKAGES=${{ steps.conf.outputs.OPENCLAW_PIP_PACKAGES }}
+            OPENCLAW_EXTENSIONS=${{ steps.conf.outputs.OPENCLAW_EXTENSIONS }}
+            OPENCLAW_NPM_REGISTRY=${{ steps.conf.outputs.OPENCLAW_NPM_REGISTRY }}
+            OPENCLAW_PIP_INDEX_URL=${{ steps.conf.outputs.OPENCLAW_PIP_INDEX_URL }}
 
       - name: Build and push to GitHub Container Registry
         uses: docker/build-push-action@v5
@@ -137,3 +160,10 @@ jobs:
           tags: |
             ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_IMAGE_NAME }}:${{ needs.check.outputs.new_version }}
             ${{ env.GHCR_IMAGE_NAME }}:latest
+          build-args: |
+            OPENCLAW_APT_PACKAGES=${{ steps.conf.outputs.OPENCLAW_APT_PACKAGES }}
+            OPENCLAW_NPM_PACKAGES=${{ steps.conf.outputs.OPENCLAW_NPM_PACKAGES }}
+            OPENCLAW_PIP_PACKAGES=${{ steps.conf.outputs.OPENCLAW_PIP_PACKAGES }}
+            OPENCLAW_EXTENSIONS=${{ steps.conf.outputs.OPENCLAW_EXTENSIONS }}
+            OPENCLAW_NPM_REGISTRY=${{ steps.conf.outputs.OPENCLAW_NPM_REGISTRY }}
+            OPENCLAW_PIP_INDEX_URL=${{ steps.conf.outputs.OPENCLAW_PIP_INDEX_URL }}

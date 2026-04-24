@@ -27,9 +27,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # ──────────────── apt + pip + npm（统一层）────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ${OPENCLAW_APT_PACKAGES} \
-    && sed -i 's/^# *en_US.UTF-8 UTF-8$/en_US.UTF-8 UTF-8/' /etc/locale.gen \
-    && locale-gen \
-    && printf 'LANG=en_US.UTF-8\nLANGUAGE=en_US:en\nLC_ALL=en_US.UTF-8\n' > /etc/default/locale \
+    && (sed -i 's/^# *en_US.UTF-8 UTF-8$/en_US.UTF-8 UTF-8/' /etc/locale.gen 2>/dev/null || true) \
+    && (locale-gen 2>/dev/null || true) \
+    && (printf 'LANG=en_US.UTF-8\nLANGUAGE=en_US:en\nLC_ALL=en_US.UTF-8\n' > /etc/default/locale 2>/dev/null || true) \
     && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && printf 'Asia/Shanghai\n' > /etc/timezone \
     && git config --system url."https://github.com/".insteadOf ssh://git@github.com/ \
