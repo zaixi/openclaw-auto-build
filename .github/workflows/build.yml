@@ -150,20 +150,6 @@ jobs:
             OPENCLAW_PIP_PACKAGES=${{ steps.conf.outputs.OPENCLAW_PIP_PACKAGES }}
             OPENCLAW_EXTENSIONS=${{ steps.conf.outputs.OPENCLAW_EXTENSIONS }}
             OPENCLAW_NPM_REGISTRY=${{ steps.conf.outputs.OPENCLAW_NPM_REGISTRY }}
-            OPENCLAW_PIP_INDEX_URL=${{ steps.conf.outputs.OPENCLAW_PIP_INDEX_URL }}
-
-      - name: Build and push to GitHub Container Registry
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: |
-            ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_IMAGE_NAME }}:${{ needs.check.outputs.new_version }}
-            ${{ env.GHCR_IMAGE_NAME }}:latest
-          build-args: |
-            OPENCLAW_APT_PACKAGES=${{ steps.conf.outputs.OPENCLAW_APT_PACKAGES }}
-            OPENCLAW_NPM_PACKAGES=${{ steps.conf.outputs.OPENCLAW_NPM_PACKAGES }}
-            OPENCLAW_PIP_PACKAGES=${{ steps.conf.outputs.OPENCLAW_PIP_PACKAGES }}
-            OPENCLAW_EXTENSIONS=${{ steps.conf.outputs.OPENCLAW_EXTENSIONS }}
-            OPENCLAW_NPM_REGISTRY=${{ steps.conf.outputs.OPENCLAW_NPM_REGISTRY }}
+                        OPENCLAW_PIP_INDEX_URL=${{ steps.conf.outputs.OPENCLAW_PIP_INDEX_URL }}
+ steps.conf.outputs.OPENCLAW_NPM_REGISTRY }}
             OPENCLAW_PIP_INDEX_URL=${{ steps.conf.outputs.OPENCLAW_PIP_INDEX_URL }}
