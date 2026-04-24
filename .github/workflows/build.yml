@@ -2,8 +2,8 @@ name: Build and Push OpenClaw Image
 
 on:
   schedule:
-    # 每6小时检查一次上游更新，有更新才构建
-    - cron: '0 */6 * * *'
+    # 每小时检查一次上游更新，有更新才构建
+    - cron: '0 */* * * *'
   workflow_dispatch:
     inputs:
       version:
