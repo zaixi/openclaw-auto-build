@@ -139,7 +139,7 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.check.outputs.new_version }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           build-args: |
-            OPENCLAW_NPM_PACKAGES=${{ steps.conf.outputs.OPENCLAW_NPM_PACKAGES }}
+            OPENCLAW_VERSION=${{ needs.check.outputs.new_version }}
             OPENCLAW_NPM_REGISTRY=${{ steps.conf.outputs.OPENCLAW_NPM_REGISTRY }}
             OPENCLAW_PIP_INDEX_URL=${{ steps.conf.outputs.OPENCLAW_PIP_INDEX_URL }}
             OPENCLAW_SEED_EXTENSIONS=${{ steps.conf.outputs.OPENCLAW_SEED_EXTENSIONS }}
@@ -159,7 +159,7 @@ jobs:
           tags: |
             ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_IMAGE_NAME }}:${{ needs.check.outputs.new_version }}
           build-args: |
-            OPENCLAW_NPM_PACKAGES=${{ steps.conf.outputs.OPENCLAW_NPM_PACKAGES }}
+            OPENCLAW_VERSION=${{ needs.check.outputs.new_version }}
             OPENCLAW_NPM_REGISTRY=${{ steps.conf.outputs.OPENCLAW_NPM_REGISTRY }}
             OPENCLAW_PIP_INDEX_URL=${{ steps.conf.outputs.OPENCLAW_PIP_INDEX_URL }}
             OPENCLAW_SEED_EXTENSIONS=${{ steps.conf.outputs.OPENCLAW_SEED_EXTENSIONS }}

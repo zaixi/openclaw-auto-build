@@ -12,6 +12,9 @@ ENV BUN_INSTALL="/usr/local" \
     PATH="/usr/local/bin:$PATH" \
     DEBIAN_FRONTEND=noninteractive
 
+# ──────────────── 构建参数（来自 build.yml）────────────────
+ARG OPENCLAW_VERSION="latest"
+
 # 1. 合并系统依赖安装与全局工具安装，并清理缓存
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -42,7 +45,7 @@ RUN apt-get update && \
     git config --system url."https://github.com/".insteadOf ssh://git@github.com/ && \
     # 设置 npm 镜像并安装全局包
     npm config set registry https://registry.npmmirror.com && \
-    npm install -g openclaw@2026.4.9 opencode-ai@latest clawhub claude-code playwright playwright-extra puppeteer-extra-plugin-stealth @steipete/bird && \
+    npm install -g openclaw@${OPENCLAW_VERSION} opencode-ai@latest clawhub claude-code playwright playwright-extra puppeteer-extra-plugin-stealth @steipete/bird && \
     # 安装 bun、uv 和 qmd
     curl -fsSL https://bun.sh/install | BUN_INSTALL=/usr/local bash && \
     curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh && \
