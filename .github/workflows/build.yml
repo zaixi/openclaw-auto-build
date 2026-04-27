@@ -14,7 +14,7 @@ on:
         required: false
         default: 'false'
   repository_dispatch:
-    types: [upstream-release]
+    types: [upstream-release, force-build]
 
 env:
   REGISTRY: docker.io
@@ -50,13 +50,28 @@ jobs:
           version_input = os.getenv('INPUT_VERSION', '')
           force = os.getenv('INPUT_FORCE', 'false')
 
-          if version_input:
-              print(f'Manually specified version: {version_input}', flush=True)
+          # repository_dispatch 用 client_payload 传参
+          import json as _json
+          client_payload = {}
+          try:
+              with open(os.environ['GITHUB_EVENT_PATH']) as f:
+                  event = _json.load(f)
+                  if 'client_payload' in event:
+                      client_payload = event.get('client_payload', {})
+          except Exception:
+              pass
+
+          # 优先取 client_payload（repository_dispatch），其次 workflow_dispatch inputs
+          cv = client_payload.get('version', '') or os.getenv('INPUT_VERSION', '')
+          cf = client_payload.get('force', '') or os.getenv('INPUT_FORCE', 'false')
+
+          if cv:
+              print(f'Manually specified version: {cv}', flush=True)
               with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-                  f.write(f'has_update=true\nnew_version={version_input}\n')
+                  f.write(f'has_update=true\nnew_version={cv}\n')
               exit(0)
 
-          if force == 'true':
+          if cf == 'true':
               print('Force build enabled', flush=True)
               with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
                   f.write(f'has_update=true\nnew_version={upstream}\n')
