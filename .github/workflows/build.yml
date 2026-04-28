@@ -2,104 +2,28 @@ name: Build and Push OpenClaw Image
 
 on:
   schedule:
-    # 每小时检查一次上游更新，有更新才构建
     - cron: "0 * * * *"
-  workflow_dispatch:
-    inputs:
-      version:
-        description: "openclaw npm 版本（如 2026.4.9），留空则自动检测"
-        required: false
-      force:
-        description: "强制构建（忽略版本检测）"
-        required: false
-        default: "false"
-  repository_dispatch:
-    types: [upstream-release, force-build]
-
-env:
-  REGISTRY: docker.io
-  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/openclaw
-  GHCR_REGISTRY: ghcr.io
-  GHCR_IMAGE_NAME: ${{ github.repository_owner }}/openclaw
 
 jobs:
-  check:
+  build:
     runs-on: ubuntu-latest
-    outputs:
-      new_version: ${{ steps.check.outputs.new_version }}
-      has_update: ${{ steps.check.outputs.has_update }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Check openclaw npm version
-        id: check
-        run: |
-          python3 << "PYEOF"
-          import urllib.request, json, os
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-          try:
-              with urllib.request.urlopen("https://registry.npmjs.org/openclaw/latest", timeout=10) as r:
-                  upstream = json.loads(r.read())["version"]
-          except Exception as e:
-              print(f"Failed to fetch npm version: {e}", flush=True)
-              exit(1)
-          print(f"NPM latest openclaw: {upstream}", flush=True)
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-          version_input = os.getenv("INPUT_VERSION", "")
-          force = os.getenv("INPUT_FORCE", "false")
-
-          import json as _json
-          client_payload = {}
-          try:
-              with open(os.environ["GITHUB_EVENT_PATH"]) as f:
-                  event = _json.load(f)
-                  if "client_payload" in event:
-                      client_payload = event.get("client_payload", {})
-          except Exception:
-              pass
-
-          cv = client_payload.get("version", "") or os.getenv("INPUT_VERSION", "")
-          cf = client_payload.get("force", "") or os.getenv("INPUT_FORCE", "false")
-
-          if cv:
-              print(f"Manually specified version: {cv}", flush=True)
-              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-                  f.write(f"has_update=true\nnew_version={cv}\n")
-              exit(0)
-
-          if cf == "true":
-              print("Force build enabled", flush=True)
-              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-                  f.write(f"has_update=true\nnew_version={upstream}\n")
-              exit(0)
-
-          dh_version = "0.0.0"
-          try:
-              req = urllib.request.Request(
-                  "https://registry.hub.docker.com/v2/repositories/${secrets.DOCKERHUB_USERNAME}/openclaw/tags?page_size=100",
-                  headers={"Accept": "application/json"}
-              )
-              with urllib.request.urlopen(req, timeout=10) as r:
-                  data = json.loads(r.read())
-                  tags = [t["name"] for t in data.get("results", []) if t["name"] not in ("latest", "main")]
-                  import re
-                  semver_tags = [t for t in tags if re.match(r"^\d+\.\d+\.\d+", t)]
-                  if semver_tags:
-                      semver_tags.sort(key=lambda x: [int(p) for p in x.split(".")])
-                      dh_version = semver_tags[-1]
-          except Exception as e:
-              print(f"Docker Hub API error (assuming empty): {e}", flush=True)
-          print(f"Docker Hub latest: {dh_version}", flush=True)
-
-          def parse_ver(v):
-              return [int(p) for p in v.split(".") if p.isdigit()]
-          has_update = parse_ver(dh_version) < parse_ver(upstream)
-          print(f"has_update={str(has_update).lower()}", flush=True)
-          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-              f.write(f"has_update={str(has_update).lower()}\nnew_version={upstream}\n")
-          PYEOF
-
-      - name: Report
-        run: |
-          echo "${{ steps.check.outputs.has_update == 'true' && format(Update
+      - name: Build and push to Docker Hub
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
