@@ -36,6 +36,9 @@ RUN apt-get update && \
     procps \
     socat \
     tini \
+    ripgrep \
+    gh \
+    tmux \
     unzip && \
     sed -i 's/^# *en_US.UTF-8 UTF-8$/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
     locale-gen && \
@@ -55,6 +58,10 @@ RUN apt-get update && \
     npm install -g @tobilu/qmd@1.1.6 && \
     # 安装 Playwright 浏览器依赖
     npx playwright install chromium --with-deps && \
+    # 安装 skill 浏览器依赖
+    npm install -g summarize && \
+    npm install -g agent-browser && \
+    npm install -g mcporter && \
     # 清理 apt 缓存
     apt-get purge -y --auto-remove && \
     apt-get clean && \
