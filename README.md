@@ -89,10 +89,10 @@ docker run -it openclaw:test bash
 
 | 类别 | 内容 |
 |------|------|
-| 基础工具 | bash, curl, git, jq, tmux, ripgrep, unzip |
+| 基础工具 | bash, curl, git, jq, tmux, ripgrep, unzip, dk（已注释，沙箱用）|
 | 运行环境 | Node.js, Python 3.12, Bun, uv |
 | Docker | docker.io（用于沙箱模式）|
-| 浏览器 | Chromium + Playwright（含中文 CJK 字体）|
+| 浏览器 | Chromium（浏览器引擎）+ Playwright（自动化框架）+ 反检测插件 — 两者同时使用，用于网页截图/自动化 |
 | 媒体 | FFmpeg |
 | 网络 | socat, openssh-client, gosu |
 | OpenClaw 全局 | opencode-ai, clawhub, claude-code |
