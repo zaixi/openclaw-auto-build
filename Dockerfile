@@ -1,5 +1,5 @@
 # OpenClaw Docker 镜像
-FROM node:24-slim
+FROM node:24-bookworm-slim
 
 # 从 Python 官方镜像拷贝 Python 3.12 (确保使用与 node 镜像一致的 Debian Bookworm 版本)
 COPY --from=python:3.12-slim-bookworm /usr/local /usr/local
