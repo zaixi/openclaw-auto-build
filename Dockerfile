@@ -8,8 +8,7 @@ COPY --from=python:3.12-slim-bookworm /usr/local /usr/local
 WORKDIR /app
 
 # 设置环境变量
-ENV BUN_INSTALL="/usr/local" \
-    PATH="/usr/local/bin:$PATH" \
+ENV PATH="/usr/local/bin:$PATH" \
     DEBIAN_FRONTEND=noninteractive
 
 # ──────────────── 构建参数（来自 build.yml）────────────────
@@ -50,7 +49,7 @@ RUN apt-get update && \
     npm config set registry https://registry.npmmirror.com && \
     npm install -g openclaw@${OPENCLAW_VERSION} opencode-ai@latest clawhub claude-code playwright playwright-extra puppeteer-extra-plugin-stealth @steipete/bird && \
     # 安装 bun、uv 和 qmd
-    curl -fsSL https://bun.sh/install | BUN_INSTALL=/usr/local bash && \
+    # curl -fsSL https://bun.sh/install | BUN_INSTALL=/usr/local bash && \
     curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh && \
     # 建立 python3 -> python 链接并安装 websockify
     ln -sf /usr/local/bin/python3 /usr/local/bin/python && \
