@@ -21,7 +21,7 @@ RUN apt-get update && \
     ca-certificates \
     chromium \
     curl \
-    # docker.io \
+    docker.io \
     build-essential \
     ffmpeg \
     fonts-liberation \
