@@ -67,7 +67,12 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /root/.npm /root/.cache
 
-# 2. 插件安装（作为 node 用户以避免后期权限修复带来的镜像膨胀）
+# 2. 安装 docker compose 插件
+RUN mkdir -p /usr/lib/docker/cli-plugins && \
+    curl -fsSL https://github.com/docker/compose/releases/download/v5.1.3/docker-compose-linux-x86_64 -o /usr/lib/docker/cli-plugins/docker-compose && \
+    chmod +x /usr/lib/docker/cli-plugins/docker-compose
+
+# 3. 插件安装（作为 node 用户以避免后期权限修复带来的镜像膨胀）
 RUN mkdir -p /home/node/.openclaw/workspace /home/node/.openclaw/extensions && \
     chown -R node:node /home/node
 
