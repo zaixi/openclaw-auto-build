@@ -22,6 +22,7 @@ RUN apt-get update && \
     chromium \
     curl \
     docker.io \
+    mkdir -p /usr/lib/docker/cli-plugins && curl -fsSL https://github.com/docker/compose/releases/download/v5.1.3/docker-compose-linux-x86_64 -o /usr/lib/docker/cli-plugins/docker-compose && chmod +x /usr/lib/docker/cli-plugins/docker-compose && \
     build-essential \
     ffmpeg \
     fonts-liberation \
