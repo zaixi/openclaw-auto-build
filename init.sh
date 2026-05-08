@@ -383,6 +383,7 @@ QQBOT_RESERVED_FIELDS = {
 
 CHANNEL_INSTALLS = {
     'feishu': {'source': 'npm', 'spec': '@openclaw/feishu', 'installPath': '/home/node/.openclaw/extensions/feishu'},
+    'openclaw-lark': {'source': 'npm', 'spec': '@larksuite/openclaw-lark', 'installPath': '/home/node/.openclaw/extensions/openclaw-lark'},
     'dingtalk': {'source': 'npm', 'spec': 'https://github.com/soimy/clawdbot-channel-dingtalk.git', 'installPath': '/home/node/.openclaw/extensions/dingtalk'},
     'openclaw-qqbot': {'source': 'path', 'sourcePath': '/home/node/.openclaw/openclaw-qqbot', 'installPath': '/home/node/.openclaw/extensions/openclaw-qqbot'},
     'napcat': {'source': 'path', 'sourcePath': '/home/node/.openclaw/extensions/napcat', 'installPath': '/home/node/.openclaw/extensions/napcat'},
@@ -2015,12 +2016,14 @@ def apply_feishu_plugin_switch(ctx):
         del ctx.entries[legacy_plugin_id]
         print('✅ 已将飞书官方插件 ID 从 feishu-openclaw-plugin 迁移为 openclaw-lark')
     if ctx.feishu_plugin_explicit:
-        ctx.entries[official_plugin_id] = {'enabled': ctx.feishu_plugin_enabled}
-        ctx.entries['feishu'] = {'enabled': not ctx.feishu_plugin_enabled}
         if ctx.feishu_plugin_enabled:
+            ctx.enable_channel('openclaw-lark', install=True)
+            ctx.disable_channel('feishu')
             print('✅ 已启用插件开关: 飞书官方插件 openclaw-lark')
             print('🚫 已自动禁用旧版渠道: 飞书')
         else:
+            ctx.disable_channel('openclaw-lark')
+            ctx.enable_channel('feishu', install=True)
             print('🚫 已禁用插件开关: 飞书官方插件 openclaw-lark')
             print('✅ 已自动启用旧版渠道: 飞书')
         return
