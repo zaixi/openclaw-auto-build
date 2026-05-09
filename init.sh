@@ -249,7 +249,7 @@ sync_seed_extension_items() {
 
 sync_seed_npm_installs() {
     local seed_dir="${OPENCLAW_SEED_NPM_DIR:-/opt/openclaw-seed/npm}"
-    local target_dir="$OPENCLAW_HOME/npm"
+    local target_dir="$OPENCLAW_HOME/extensions"
     local seed_version_file
     local target_version_file="$target_dir/.seed-version"
     local global_sync="${SYNC_OPENCLAW_CONFIG:-true}"
@@ -259,7 +259,7 @@ sync_seed_npm_installs() {
 
     global_sync="$(echo "$global_sync" | tr '[:upper:]' '[:lower:]' | xargs)"
     if [ "$global_sync" = "false" ] || [ "$global_sync" = "0" ] || [ "$global_sync" = "no" ]; then
-        echo "ℹ️ 已关闭整体配置同步，跳过 npm 托管插件同步"
+        echo "ℹ️ 已关闭整体配置同步，跳过内置插件同步"
         return
     fi
 
@@ -267,12 +267,12 @@ sync_seed_npm_installs() {
     normalized_toggle="$(echo "$sync_on_start" | tr '[:upper:]' '[:lower:]' | xargs)"
 
     if [ "$normalized_toggle" = "false" ] || [ "$normalized_toggle" = "0" ] || [ "$normalized_toggle" = "no" ]; then
-        echo "ℹ️ 已关闭启动时 npm 托管插件同步"
+        echo "ℹ️ 已关闭启动时内置插件同步"
         return
     fi
 
     if [ ! -d "$seed_dir" ]; then
-        echo "ℹ️ 未找到 npm 托管插件 seed 目录，跳过同步: $seed_dir"
+        echo "ℹ️ 未找到内置插件 seed 目录，跳过同步: $seed_dir"
         return
     fi
 
@@ -281,7 +281,7 @@ sync_seed_npm_installs() {
 
     case "$normalized_mode" in
         missing)
-            echo "=== 同步 npm 托管插件（仅补充缺失项） ==="
+            echo "=== 同步内置插件到 extensions（仅补充缺失项） ==="
             find "$seed_dir" -mindepth 1 -maxdepth 1 | while IFS= read -r seed_item; do
                 local item_name target_item
                 item_name="$(basename "$seed_item")"
@@ -294,7 +294,7 @@ sync_seed_npm_installs() {
             done
             ;;
         overwrite)
-            echo "=== 同步 npm 托管插件（强制覆盖） ==="
+            echo "=== 同步内置插件到 extensions（强制覆盖） ==="
             sync_seed_extension_items "$seed_dir" "$target_dir"
             ;;
         seed-version|versioned|"")
@@ -313,7 +313,7 @@ sync_seed_npm_installs() {
                 return
             fi
 
-            echo "=== 同步 npm 托管插件（按 seed 版本） ==="
+            echo "=== 同步内置插件到 extensions（按 seed 版本） ==="
             if [ -n "$current_version" ]; then
                 echo "当前插件 seed 版本: $current_version"
             else
@@ -327,7 +327,7 @@ sync_seed_npm_installs() {
             sync_seed_extension_items "$seed_dir" "$target_dir"
             ;;
         *)
-            echo "⚠️ 未识别的 SYNC_EXTENSIONS_MODE=$sync_mode，支持 missing / overwrite / seed-version，已跳过 npm 托管插件同步"
+            echo "⚠️ 未识别的 SYNC_EXTENSIONS_MODE=$sync_mode，支持 missing / overwrite / seed-version，已跳过内置插件同步"
             return
             ;;
     esac
@@ -336,7 +336,13 @@ sync_seed_npm_installs() {
         chown -R node:node "$target_dir" || true
     fi
 
-    echo "✅ npm 托管插件同步完成，模式: ${normalized_mode:-seed-version}"
+    # 旧版镜像/配置曾把 NapCat 直接放在 extensions/napcat。新版统一放在
+    # extensions/node_modules/napcat，避免 Gateway 把旧目录作为 qq 插件继续加载。
+    if [ -d "$target_dir/napcat" ] && [ -d "$target_dir/node_modules/napcat" ]; then
+        rm -rf "$target_dir/napcat"
+    fi
+
+    echo "✅ 内置插件同步完成，模式: ${normalized_mode:-seed-version}"
 }
 
 is_root() {
@@ -537,12 +543,12 @@ QQBOT_RESERVED_FIELDS = {
 }
 
 CHANNEL_INSTALLS = {
-    'feishu': {'source': 'npm', 'spec': '@openclaw/feishu', 'installPath': '/home/node/.openclaw/npm/node_modules/@openclaw/feishu'},
-    'openclaw-lark': {'source': 'npm', 'spec': '@larksuite/openclaw-lark', 'installPath': '/home/node/.openclaw/npm/node_modules/@larksuite/openclaw-lark'},
-    'dingtalk': {'source': 'npm', 'spec': '@soimy/dingtalk', 'installPath': '/home/node/.openclaw/npm/node_modules/@soimy/dingtalk'},
-    'openclaw-qqbot': {'source': 'npm', 'spec': '@tencent-connect/openclaw-qqbot', 'installPath': '/home/node/.openclaw/npm/node_modules/@tencent-connect/openclaw-qqbot'},
-    'napcat': {'source': 'path', 'sourcePath': '/home/node/.openclaw/npm/node_modules/napcat', 'installPath': '/home/node/.openclaw/npm/node_modules/napcat'},
-    'wecom': {'source': 'npm', 'spec': '@sunnoy/wecom', 'installPath': '/home/node/.openclaw/npm/node_modules/@sunnoy/wecom'},
+    'feishu': {'source': 'npm', 'spec': '@openclaw/feishu', 'installPath': '/home/node/.openclaw/extensions/node_modules/@openclaw/feishu'},
+    'openclaw-lark': {'source': 'npm', 'spec': '@larksuite/openclaw-lark', 'installPath': '/home/node/.openclaw/extensions/node_modules/@larksuite/openclaw-lark'},
+    'dingtalk': {'source': 'npm', 'spec': '@soimy/dingtalk', 'installPath': '/home/node/.openclaw/extensions/node_modules/@soimy/dingtalk'},
+    'openclaw-qqbot': {'source': 'npm', 'spec': '@tencent-connect/openclaw-qqbot', 'installPath': '/home/node/.openclaw/extensions/node_modules/@tencent-connect/openclaw-qqbot'},
+    'napcat': {'source': 'path', 'sourcePath': '/home/node/.openclaw/extensions/node_modules/napcat', 'installPath': '/home/node/.openclaw/extensions/node_modules/napcat'},
+    'wecom': {'source': 'npm', 'spec': '@sunnoy/wecom', 'installPath': '/home/node/.openclaw/extensions/node_modules/@sunnoy/wecom'},
 }
 
 
@@ -2064,6 +2070,10 @@ def apply_channel_rules(ctx):
             ctx.entries.pop('qqbot', None)
             continue
 
+        if channel_id == 'napcat' and not has_env:
+            ctx.entries.pop('qq', None)
+            ctx.installs.pop('qq', None)
+
         if ctx.entries.get(plugin_id, {}).get('enabled'):
             ctx.disable_channel(plugin_id)
             print(f"🚫 {channel_label} 环境变量缺失，已禁用渠道")
@@ -2155,7 +2165,7 @@ def migrate_qqbot_plugin_entry(ctx):
             migrated_install.pop('sourcePath', None)
             migrated_install['source'] = 'npm'
             migrated_install['spec'] = '@tencent-connect/openclaw-qqbot'
-            migrated_install['installPath'] = '/home/node/.openclaw/npm/node_modules/@tencent-connect/openclaw-qqbot'
+            migrated_install['installPath'] = '/home/node/.openclaw/extensions/node_modules/@tencent-connect/openclaw-qqbot'
             ctx.installs[official_plugin_id] = migrated_install
 
     ctx.installs.pop(legacy_plugin_id, None)
@@ -2193,6 +2203,14 @@ def apply_feishu_plugin_switch(ctx):
         print('ℹ️ 未检测到飞书凭证且飞书官方插件开关未配置，已同时禁用官方插件和旧版飞书渠道')
 
 
+def prune_known_stale_plugin_entries(ctx):
+    # 这些 ID 来自旧配置或旧插件名；没有 install 记录时继续保留只会触发
+    # Gateway 的 stale config warnings。
+    for plugin_id in ('acpx', 'qq'):
+        if plugin_id in ctx.entries and plugin_id not in ctx.installs:
+            ctx.entries.pop(plugin_id, None)
+
+
 def finalize_plugins(ctx):
     
     ctx.plugins['allow'] = [name for name, entry in ctx.entries.items() if entry.get('enabled')]
@@ -2222,6 +2240,7 @@ def sync_channels_and_plugins(ctx):
     migrate_qqbot_plugin_entry(ctx)
     apply_multi_account_plugin_state(ctx)
     apply_feishu_plugin_switch(ctx)
+    prune_known_stale_plugin_entries(ctx)
     finalize_plugins(ctx)
     validate_feishu_multi_accounts(ctx.channels)
     validate_dingtalk_multi_accounts(ctx.channels)

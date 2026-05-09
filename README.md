@@ -70,7 +70,7 @@ docker run --rm -it --entrypoint bash openclaw:test
 
 ## 持久化挂载
 
-内置插件 seed 存放在 `/opt/openclaw-seed/npm`，启动时会同步到 `/home/node/.openclaw/npm`。
+内置插件 seed 存放在 `/opt/openclaw-seed/npm`，启动时会同步到 `/home/node/.openclaw/extensions`。
 因此即使将宿主机目录挂载到 `/home/node`，也不会遮住镜像内置插件 seed。
 默认同步模式会以 seed 为准更新同名内置插件，并合并 `package.json` 与 `package-lock.json`：
 seed 中的依赖版本优先生效，运行时额外安装插件的 npm 元数据会保留。
