@@ -13,6 +13,7 @@ ENV PATH="/usr/local/bin:$PATH" \
 
 # ──────────────── 构建参数（来自 build.yml）────────────────
 ARG OPENCLAW_VERSION="latest"
+ARG OPENCLAW_SEED_VERSION=""
 
 # 1. 合并系统依赖安装与全局工具安装，并清理缓存
 RUN apt-get update && \
@@ -72,8 +73,9 @@ RUN mkdir -p /usr/lib/docker/cli-plugins && \
     chmod +x /usr/lib/docker/cli-plugins/docker-compose
 
 # 3. 插件安装（作为 node 用户以避免后期权限修复带来的镜像膨胀）
-RUN mkdir -p /home/node/.openclaw/workspace /home/node/.openclaw/extensions && \
-    chown -R node:node /home/node
+# Seed 放在 /opt 下，避免用户将整个 /home/node 挂载出来时遮住镜像内置插件。
+RUN mkdir -p /home/node/.openclaw/workspace /home/node/.openclaw/extensions /opt/openclaw-seed && \
+    chown -R node:node /home/node /opt/openclaw-seed
 
 USER node
 ENV HOME=/home/node
@@ -99,13 +101,14 @@ RUN if [ -n "$CLAWHUB_TOKEN" ]; then clawhub login --token "$CLAWHUB_TOKEN"; fi 
   timeout 300 openclaw plugins install --dangerously-force-unsafe-install @tencent-connect/openclaw-qqbot@latest || true && \
   timeout 300 openclaw plugins install --dangerously-force-unsafe-install @sunnoy/wecom || true && \
   timeout 300 openclaw plugins install --dangerously-force-unsafe-install @larksuite/openclaw-lark || true && \
-  mkdir -p /home/node/.openclaw /home/node/.openclaw-seed && \
+  mkdir -p /home/node/.openclaw /opt/openclaw-seed && \
   # 预执行安装命令（容器内需手动交互，此处仅作声明或环境准备）
   #  printf '{\n  "channels": {\n    "feishu": {\n      "enabled": false,\n      "appId": "2222222222222222",\n      "appSecret": "1111111111111111",\n      "accounts": {\n        "default": {\n          "appId": "2222222222222222",\n          "appSecret": "1111111111111111",\n          "name": "OpenClaw Bot"\n        }\n      }\n    }\n  }\n}\n' > /home/node/.openclaw/openclaw.json && \
   # npx -y @larksuite/openclaw-lark-tools install && \
   find /home/node/.openclaw/extensions -name ".git" -type d -exec rm -rf {} + && \
-  mv /home/node/.openclaw/extensions /home/node/.openclaw-seed/ && \
-  printf '%s\n' '2026.4.9-f1' > /home/node/.openclaw-seed/extensions/.seed-version && \
+  mv /home/node/.openclaw/extensions /opt/openclaw-seed/ && \
+  seed_version="${OPENCLAW_SEED_VERSION:-openclaw-${OPENCLAW_VERSION}}" && \
+  printf '%s\n' "$seed_version" > /opt/openclaw-seed/extensions/.seed-version && \
   rm -rf /tmp/* /home/node/.npm /home/node/.cache
   
 # 3. 最终配置

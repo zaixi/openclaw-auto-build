@@ -84,9 +84,9 @@ ensure_config_persistence() {
 }
 
 sync_seed_extensions() {
-    local seed_dir="/home/node/.openclaw-seed/extensions"
+    local seed_dir="${OPENCLAW_SEED_EXTENSIONS_DIR:-/opt/openclaw-seed/extensions}"
     local target_dir="$OPENCLAW_HOME/extensions"
-    local seed_version_file="$seed_dir/.seed-version"
+    local seed_version_file
     local target_version_file="$target_dir/.seed-version"
     local global_sync="${SYNC_OPENCLAW_CONFIG:-true}"
     local sync_mode="${SYNC_EXTENSIONS_MODE:-seed-version}"
@@ -112,6 +112,7 @@ sync_seed_extensions() {
         return
     fi
 
+    seed_version_file="$seed_dir/.seed-version"
     mkdir -p "$target_dir"
 
     case "$normalized_mode" in

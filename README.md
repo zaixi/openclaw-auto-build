@@ -77,6 +77,11 @@ docker build -t openclaw:test .
 docker run -it openclaw:test bash
 ```
 
+## 持久化挂载
+
+内置插件 seed 存放在 `/opt/openclaw-seed/extensions`，启动时会同步到 `/home/node/.openclaw/extensions`。
+因此即使将宿主机目录挂载到 `/home/node`，也不会遮住镜像内置插件 seed。
+
 ## 构建参数说明
 
 | 参数 | 来源 | 说明 |
@@ -84,6 +89,7 @@ docker run -it openclaw:test bash
 | `OPENCLAW_VERSION` | Workflow 自动检测 | OpenClaw npm 版本号 |
 | `OPENCLAW_NPM_REGISTRY` | build.conf | npm registry 镜像源 |
 | `OPENCLAW_PIP_INDEX_URL` | build.conf | pip index 镜像源 |
+| `OPENCLAW_SEED_VERSION` | Docker build arg | 插件 seed 版本标记，默认 `openclaw-${OPENCLAW_VERSION}` |
 
 ## 预装内容
 
