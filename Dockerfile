@@ -13,6 +13,8 @@ ENV PATH="/usr/local/bin:$PATH" \
 
 # ──────────────── 构建参数（来自 build.yml）────────────────
 ARG OPENCLAW_VERSION="latest"
+ARG OPENCLAW_NPM_REGISTRY="https://registry.npmmirror.com"
+ARG OPENCLAW_PIP_INDEX_URL="https://pypi.npmmirror.com"
 ARG OPENCLAW_SEED_VERSION=""
 
 # 1. 合并系统依赖安装与全局工具安装，并清理缓存
@@ -47,14 +49,13 @@ RUN apt-get update && \
     # 配置 git 使用 HTTPS 替代 SSH
     git config --system url."https://github.com/".insteadOf ssh://git@github.com/ && \
     # 设置 npm 镜像并安装全局包
-    npm config set registry https://registry.npmmirror.com && \
+    npm config set registry "$OPENCLAW_NPM_REGISTRY" && \
     npm install -g openclaw@${OPENCLAW_VERSION} opencode-ai@latest clawhub claude-code playwright playwright-extra puppeteer-extra-plugin-stealth @steipete/bird && \
-    # 安装 bun、uv 和 qmd
-    # curl -fsSL https://bun.sh/install | BUN_INSTALL=/usr/local bash && \
+    # 安装 uv 和 qmd
     curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh && \
     # 建立 python3 -> python 链接并安装 websockify
     ln -sf /usr/local/bin/python3 /usr/local/bin/python && \
-    /usr/local/bin/python3 -m pip install --no-cache-dir websockify && \
+    /usr/local/bin/python3 -m pip install --no-cache-dir -i "$OPENCLAW_PIP_INDEX_URL" websockify && \
     npm install -g @tobilu/qmd@1.1.6 && \
     # 安装 Playwright 浏览器依赖
     npx playwright install chromium --with-deps && \
@@ -101,13 +102,15 @@ RUN if [ -n "$CLAWHUB_TOKEN" ]; then clawhub login --token "$CLAWHUB_TOKEN"; fi 
   timeout 300 openclaw plugins install --dangerously-force-unsafe-install @tencent-connect/openclaw-qqbot@latest || true && \
   timeout 300 openclaw plugins install --dangerously-force-unsafe-install @sunnoy/wecom || true && \
   timeout 300 openclaw plugins install --dangerously-force-unsafe-install @larksuite/openclaw-lark || true && \
+  timeout 300 openclaw plugins install --dangerously-force-unsafe-install @tencent-weixin/openclaw-weixin || true && \
   mkdir -p /home/node/.openclaw /opt/openclaw-seed && \
   # 预执行安装命令（容器内需手动交互，此处仅作声明或环境准备）
   #  printf '{\n  "channels": {\n    "feishu": {\n      "enabled": false,\n      "appId": "2222222222222222",\n      "appSecret": "1111111111111111",\n      "accounts": {\n        "default": {\n          "appId": "2222222222222222",\n          "appSecret": "1111111111111111",\n          "name": "OpenClaw Bot"\n        }\n      }\n    }\n  }\n}\n' > /home/node/.openclaw/openclaw.json && \
   # npx -y @larksuite/openclaw-lark-tools install && \
   find /home/node/.openclaw/extensions -name ".git" -type d -exec rm -rf {} + && \
   mv /home/node/.openclaw/extensions /opt/openclaw-seed/ && \
-  seed_version="${OPENCLAW_SEED_VERSION:-openclaw-${OPENCLAW_VERSION}}" && \
+  seed_hash="$(find /opt/openclaw-seed/extensions -type f ! -name '.seed-version' -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -c1-12)" && \
+  seed_version="${OPENCLAW_SEED_VERSION:-openclaw-${OPENCLAW_VERSION}-${seed_hash}}" && \
   printf '%s\n' "$seed_version" > /opt/openclaw-seed/extensions/.seed-version && \
   rm -rf /tmp/* /home/node/.npm /home/node/.cache
   

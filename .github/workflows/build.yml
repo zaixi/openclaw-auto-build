@@ -46,23 +46,22 @@ jobs:
               exit(1)
           print(f'NPM latest openclaw: {upstream}', flush=True)
 
-          version_input = os.getenv('INPUT_VERSION', '')
-          force = os.getenv('INPUT_FORCE', 'false')
-
           # repository_dispatch 用 client_payload 传参
           import json as _json
           client_payload = {}
+          workflow_inputs = {}
           try:
               with open(os.environ['GITHUB_EVENT_PATH']) as f:
                   event = _json.load(f)
                   if 'client_payload' in event:
                       client_payload = event.get('client_payload', {})
+                  workflow_inputs = event.get('inputs', {})
           except Exception:
               pass
 
           # 优先取 client_payload（repository_dispatch），其次 workflow_dispatch inputs
-          cv = client_payload.get('version', '') or os.getenv('INPUT_VERSION', '')
-          cf = client_payload.get('force', '') or os.getenv('INPUT_FORCE', 'false')
+          cv = client_payload.get('version', '') or workflow_inputs.get('version', '')
+          cf = client_payload.get('force', '') or workflow_inputs.get('force', 'false')
 
           if cv:
               print(f'Manually specified version: {cv}', flush=True)
@@ -70,7 +69,7 @@ jobs:
                   f.write(f'has_update=true\nnew_version={cv}\n')
               exit(0)
 
-          if cf == 'true':
+          if str(cf).lower() == 'true':
               print('Force build enabled', flush=True)
               with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
                   f.write(f'has_update=true\nnew_version={upstream}\n')
@@ -156,7 +155,7 @@ jobs:
             OPENCLAW_VERSION=${{ needs.check.outputs.new_version }}
             OPENCLAW_NPM_REGISTRY=${{ steps.conf.outputs.OPENCLAW_NPM_REGISTRY }}
             OPENCLAW_PIP_INDEX_URL=${{ steps.conf.outputs.OPENCLAW_PIP_INDEX_URL }}
-            OPENCLAW_SEED_EXTENSIONS=${{ steps.conf.outputs.OPENCLAW_SEED_EXTENSIONS }}
+            OPENCLAW_SEED_VERSION=${{ steps.conf.outputs.OPENCLAW_SEED_VERSION }}
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -176,4 +175,4 @@ jobs:
             OPENCLAW_VERSION=${{ needs.check.outputs.new_version }}
             OPENCLAW_NPM_REGISTRY=${{ steps.conf.outputs.OPENCLAW_NPM_REGISTRY }}
             OPENCLAW_PIP_INDEX_URL=${{ steps.conf.outputs.OPENCLAW_PIP_INDEX_URL }}
-            OPENCLAW_SEED_EXTENSIONS=${{ steps.conf.outputs.OPENCLAW_SEED_EXTENSIONS }}
+            OPENCLAW_SEED_VERSION=${{ steps.conf.outputs.OPENCLAW_SEED_VERSION }}

@@ -83,6 +83,149 @@ ensure_config_persistence() {
     fi
 }
 
+merge_seed_extension_metadata() {
+    local seed_dir="$1"
+    local target_dir="$2"
+
+    SEED_DIR="$seed_dir" TARGET_DIR="$target_dir" python3 - <<'PYCODE'
+import copy
+import json
+import os
+from pathlib import Path
+
+seed_dir = Path(os.environ['SEED_DIR'])
+target_dir = Path(os.environ['TARGET_DIR'])
+
+
+def load_json(path):
+    if not path.exists():
+        return None
+    with path.open('r', encoding='utf-8') as f:
+        return json.load(f)
+
+
+def write_json(path, data):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open('w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+        f.write('\n')
+
+
+DEP_SECTIONS = (
+    'dependencies',
+    'devDependencies',
+    'optionalDependencies',
+    'peerDependencies',
+)
+
+
+def merge_dep_sections(seed_obj, target_obj):
+    result = copy.deepcopy(target_obj or {})
+    target_obj = target_obj or {}
+    seed_obj = seed_obj or {}
+
+    for key, value in seed_obj.items():
+        if key not in DEP_SECTIONS:
+            result[key] = value
+
+    for section in DEP_SECTIONS:
+        seed_deps = seed_obj.get(section)
+        target_deps = target_obj.get(section)
+        if not isinstance(seed_deps, dict) and not isinstance(target_deps, dict):
+            continue
+
+        merged = {}
+        if isinstance(target_deps, dict):
+            merged.update(target_deps)
+        if isinstance(seed_deps, dict):
+            merged.update(seed_deps)
+        result[section] = merged
+
+    return result
+
+
+def merge_package_json():
+    seed_pkg = load_json(seed_dir / 'package.json')
+    if seed_pkg is None:
+        return
+
+    target_pkg = load_json(target_dir / 'package.json') or {}
+    merged = merge_dep_sections(seed_pkg, target_pkg)
+    write_json(target_dir / 'package.json', merged)
+
+
+def merge_package_lock():
+    seed_lock = load_json(seed_dir / 'package-lock.json')
+    if seed_lock is None:
+        return
+
+    target_lock = load_json(target_dir / 'package-lock.json') or {}
+    merged = copy.deepcopy(target_lock)
+    for key, value in seed_lock.items():
+        if key not in ('packages', 'dependencies'):
+            merged[key] = value
+
+    seed_packages = seed_lock.get('packages')
+    target_packages = target_lock.get('packages')
+    if isinstance(seed_packages, dict) and isinstance(target_packages, dict):
+        merged_packages = copy.deepcopy(seed_packages)
+
+        root_seed = seed_packages.get('')
+        root_target = target_packages.get('')
+        seed_root_deps = {}
+        if isinstance(root_seed, dict) or isinstance(root_target, dict):
+            merged_packages[''] = merge_dep_sections(root_seed or {}, root_target or {})
+            root_seed_deps = root_seed.get('dependencies') if isinstance(root_seed, dict) else None
+            if isinstance(root_seed_deps, dict):
+                seed_root_deps.update(root_seed_deps)
+
+        for package_path, package_meta in target_packages.items():
+            if package_path == '':
+                continue
+            if package_path not in merged_packages:
+                package_name = package_path.removeprefix('node_modules/')
+                if package_name in seed_root_deps:
+                    continue
+                merged_packages[package_path] = package_meta
+        merged['packages'] = merged_packages
+
+    seed_deps = seed_lock.get('dependencies')
+    target_deps = target_lock.get('dependencies')
+    if isinstance(seed_deps, dict) or isinstance(target_deps, dict):
+        merged_deps = {}
+        if isinstance(target_deps, dict):
+            merged_deps.update(target_deps)
+        if isinstance(seed_deps, dict):
+            merged_deps.update(seed_deps)
+        merged['dependencies'] = merged_deps
+
+    write_json(target_dir / 'package-lock.json', merged)
+
+
+merge_package_json()
+merge_package_lock()
+PYCODE
+}
+
+sync_seed_extension_items() {
+    local seed_dir="$1"
+    local target_dir="$2"
+
+    # 以 seed 为准更新同名插件，同时保留用户自行添加的其他插件目录。
+    find "$seed_dir" -mindepth 1 -maxdepth 1 ! -name '.seed-version' ! -name 'package.json' ! -name 'package-lock.json' | while IFS= read -r seed_item; do
+        local item_name
+        item_name="$(basename "$seed_item")"
+        rm -rf "$target_dir/$item_name"
+        cp -a "$seed_item" "$target_dir/$item_name"
+    done
+
+    merge_seed_extension_metadata "$seed_dir" "$target_dir"
+
+    if [ -f "$seed_dir/.seed-version" ]; then
+        cp -a "$seed_dir/.seed-version" "$target_dir/.seed-version"
+    fi
+}
+
 sync_seed_extensions() {
     local seed_dir="${OPENCLAW_SEED_EXTENSIONS_DIR:-/opt/openclaw-seed/extensions}"
     local target_dir="$OPENCLAW_HOME/extensions"
@@ -131,11 +274,7 @@ sync_seed_extensions() {
             ;;
         overwrite)
             echo "=== 同步内置插件（强制覆盖） ==="
-            # 仅删除 seed 中存在的同名项，以保留用户自行添加的其他插件
-            find "$seed_dir" -mindepth 1 -maxdepth 1 ! -name '.seed-version' | while IFS= read -r seed_item; do
-                rm -rf "$target_dir/$(basename "$seed_item")"
-            done
-            cp -a "$seed_dir"/. "$target_dir"/
+            sync_seed_extension_items "$seed_dir" "$target_dir"
             ;;
         seed-version|versioned|"")
             local seed_version current_version
@@ -164,11 +303,7 @@ sync_seed_extensions() {
             else
                 echo "镜像内置 seed 版本: 未标记，执行覆盖同步"
             fi
-            # 仅删除 seed 中存在的同名项，以保留用户自行添加的其他插件
-            find "$seed_dir" -mindepth 1 -maxdepth 1 ! -name '.seed-version' | while IFS= read -r seed_item; do
-                rm -rf "$target_dir/$(basename "$seed_item")"
-            done
-            cp -a "$seed_dir"/. "$target_dir"/
+            sync_seed_extension_items "$seed_dir" "$target_dir"
             ;;
         *)
             echo "⚠️ 未识别的 SYNC_EXTENSIONS_MODE=$sync_mode，支持 missing / overwrite / seed-version，已跳过插件同步"
@@ -180,8 +315,6 @@ sync_seed_extensions() {
         chown -R node:node "$target_dir" || true
     fi
 
-    rm -rf "$seed_dir"
-    echo "🧹 已清空插件 seed 目录: $seed_dir"
     echo "✅ 内置插件同步完成，模式: ${normalized_mode:-seed-version}"
 }
 

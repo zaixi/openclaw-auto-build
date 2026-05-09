@@ -74,13 +74,15 @@ ghcr.io/<your-username>/openclaw:<version>
 
 ```bash
 docker build -t openclaw:test .
-docker run -it openclaw:test bash
+docker run --rm -it --entrypoint bash openclaw:test
 ```
 
 ## 持久化挂载
 
 内置插件 seed 存放在 `/opt/openclaw-seed/extensions`，启动时会同步到 `/home/node/.openclaw/extensions`。
 因此即使将宿主机目录挂载到 `/home/node`，也不会遮住镜像内置插件 seed。
+默认同步模式会以 seed 为准更新同名内置插件，并合并 `extensions/package.json` 与 `extensions/package-lock.json`：
+seed 中的依赖版本优先生效，运行时额外安装插件的 npm 元数据会保留。
 
 ## 构建参数说明
 
@@ -89,21 +91,30 @@ docker run -it openclaw:test bash
 | `OPENCLAW_VERSION` | Workflow 自动检测 | OpenClaw npm 版本号 |
 | `OPENCLAW_NPM_REGISTRY` | build.conf | npm registry 镜像源 |
 | `OPENCLAW_PIP_INDEX_URL` | build.conf | pip index 镜像源 |
-| `OPENCLAW_SEED_VERSION` | Docker build arg | 插件 seed 版本标记，默认 `openclaw-${OPENCLAW_VERSION}` |
+| `OPENCLAW_SEED_VERSION` | build.conf / Docker build arg | 插件 seed 版本标记，默认按 OpenClaw 版本和 seed 内容生成 |
 
 ## 预装内容
 
 | 类别 | 内容 |
 |------|------|
 | 基础工具 | bash, curl, git, jq, tmux, ripgrep, unzip, dk（已注释，沙箱用）|
-| 运行环境 | Node.js, Python 3.12, Bun, uv |
+| 运行环境 | Node.js, Python 3.12, uv |
 | Docker | docker.io（用于沙箱模式）|
 | 浏览器 | Chromium（浏览器引擎）+ Playwright（自动化框架）+ 反检测插件 — 两者同时使用，用于网页截图/自动化 |
 | 媒体 | FFmpeg |
 | 网络 | socat, openssh-client, gosu |
 | OpenClaw 全局 | opencode-ai, clawhub, claude-code |
-| 聊天插件 | openclaw-napcat, @soimy/dingtalk, @tencent-connect/openclaw-qqbot, @sunnoy/wecom |
+| 聊天插件 | openclaw-napcat, @soimy/dingtalk, @tencent-connect/openclaw-qqbot, @sunnoy/wecom, @tencent-weixin/openclaw-weixin |
 | 其他 | Playwright Extra, mcporter, agent-browser, Pillium |
+
+## 微信插件
+
+镜像已预装官方微信插件 `@tencent-weixin/openclaw-weixin`，并通过 seed 同步到持久化的 `extensions` 目录。
+微信账号绑定仍需在运行时交互扫码，可按官方安装助手执行：
+
+```bash
+npx -y @tencent-weixin/openclaw-weixin-cli install
+```
 
 ## 上游参考
 
