@@ -2237,7 +2237,7 @@ def cleanup_legacy_feishu_channel_for_official_plugin(ctx):
 
     for key in FEISHU_ACCOUNT_FIELDS:
         feishu.pop(key, None)
-    feishu['enabled'] = False
+    feishu['enabled'] = True
 
 
 def prune_known_stale_plugin_entries(ctx):
