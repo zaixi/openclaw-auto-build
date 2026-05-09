@@ -73,7 +73,7 @@ RUN mkdir -p /usr/lib/docker/cli-plugins && \
 
 # 3. 插件安装（作为 node 用户以避免后期权限修复带来的镜像膨胀）
 # Seed 放在 /opt 下，避免用户将整个 /home/node 挂载出来时遮住镜像内置插件。
-RUN mkdir -p /home/node/.openclaw/workspace /home/node/.openclaw/extensions /opt/openclaw-seed && \
+RUN mkdir -p /home/node/.openclaw/workspace /home/node/.openclaw/npm/node_modules /opt/openclaw-seed && \
     chown -R node:node /home/node /opt/openclaw-seed
 
 USER node
@@ -90,26 +90,25 @@ WORKDIR /home/node
 
 ARG CLAWHUB_TOKEN
 RUN if [ -n "$CLAWHUB_TOKEN" ]; then clawhub login --token "$CLAWHUB_TOKEN"; fi && \
-  cd /home/node/.openclaw/extensions && \
+  cd /home/node/.openclaw/npm/node_modules && \
   git clone --depth 1 -b v4.17.25 https://github.com/Daiyimo/openclaw-napcat.git napcat && \
   cd napcat && \
   npm install --production && \
-  timeout 300 openclaw plugins install --dangerously-force-unsafe-install -l . || true && \
-  cd /home/node/.openclaw/extensions && \
-  timeout 300 openclaw plugins install --dangerously-force-unsafe-install @soimy/dingtalk || true && \
-  timeout 300 openclaw plugins install --dangerously-force-unsafe-install @tencent-connect/openclaw-qqbot@latest || true && \
-  timeout 300 openclaw plugins install --dangerously-force-unsafe-install @sunnoy/wecom || true && \
-  timeout 300 openclaw plugins install --dangerously-force-unsafe-install @larksuite/openclaw-lark || true && \
-  timeout 300 openclaw plugins install --dangerously-force-unsafe-install @tencent-weixin/openclaw-weixin || true && \
+  cd /home/node/.openclaw/npm && \
+  timeout 300 openclaw plugins install --dangerously-force-unsafe-install @soimy/dingtalk && \
+  timeout 300 openclaw plugins install --dangerously-force-unsafe-install @tencent-connect/openclaw-qqbot@latest && \
+  timeout 300 openclaw plugins install --dangerously-force-unsafe-install @sunnoy/wecom && \
+  timeout 300 openclaw plugins install --dangerously-force-unsafe-install @larksuite/openclaw-lark && \
+  timeout 300 openclaw plugins install --dangerously-force-unsafe-install @tencent-weixin/openclaw-weixin && \
   mkdir -p /home/node/.openclaw /opt/openclaw-seed && \
   # 预执行安装命令（容器内需手动交互，此处仅作声明或环境准备）
   #  printf '{\n  "channels": {\n    "feishu": {\n      "enabled": false,\n      "appId": "2222222222222222",\n      "appSecret": "1111111111111111",\n      "accounts": {\n        "default": {\n          "appId": "2222222222222222",\n          "appSecret": "1111111111111111",\n          "name": "OpenClaw Bot"\n        }\n      }\n    }\n  }\n}\n' > /home/node/.openclaw/openclaw.json && \
   # npx -y @larksuite/openclaw-lark-tools install && \
-  find /home/node/.openclaw/extensions -name ".git" -type d -exec rm -rf {} + && \
-  mv /home/node/.openclaw/extensions /opt/openclaw-seed/ && \
-  seed_hash="$(find /opt/openclaw-seed/extensions -type f ! -name '.seed-version' -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -c1-12)" && \
+  find /home/node/.openclaw/npm -name ".git" -type d -exec rm -rf {} + && \
+  mv /home/node/.openclaw/npm /opt/openclaw-seed/ && \
+  seed_hash="$(find /opt/openclaw-seed -type f ! -name '.seed-version' -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -c1-12)" && \
   seed_version="${OPENCLAW_SEED_VERSION:-openclaw-${OPENCLAW_VERSION}-${seed_hash}}" && \
-  printf '%s\n' "$seed_version" > /opt/openclaw-seed/extensions/.seed-version && \
+  printf '%s\n' "$seed_version" > /opt/openclaw-seed/npm/.seed-version && \
   rm -rf /tmp/* /home/node/.npm /home/node/.cache
   
 # 3. 最终配置

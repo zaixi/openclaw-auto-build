@@ -212,12 +212,33 @@ sync_seed_extension_items() {
     local target_dir="$2"
 
     # 以 seed 为准更新同名插件，同时保留用户自行添加的其他插件目录。
-    find "$seed_dir" -mindepth 1 -maxdepth 1 ! -name '.seed-version' ! -name 'package.json' ! -name 'package-lock.json' | while IFS= read -r seed_item; do
+    find "$seed_dir" -mindepth 1 -maxdepth 1 ! -name '.seed-version' ! -name 'package.json' ! -name 'package-lock.json' ! -name 'node_modules' | while IFS= read -r seed_item; do
         local item_name
         item_name="$(basename "$seed_item")"
         rm -rf "$target_dir/$item_name"
         cp -a "$seed_item" "$target_dir/$item_name"
     done
+
+    if [ -d "$seed_dir/node_modules" ]; then
+        mkdir -p "$target_dir/node_modules"
+        find "$seed_dir/node_modules" -mindepth 1 -maxdepth 1 | while IFS= read -r seed_item; do
+            local item_name
+            item_name="$(basename "$seed_item")"
+
+            if [ -d "$seed_item" ] && [ "${item_name#@}" != "$item_name" ]; then
+                mkdir -p "$target_dir/node_modules/$item_name"
+                find "$seed_item" -mindepth 1 -maxdepth 1 | while IFS= read -r scoped_item; do
+                    local scoped_name
+                    scoped_name="$(basename "$scoped_item")"
+                    rm -rf "$target_dir/node_modules/$item_name/$scoped_name"
+                    cp -a "$scoped_item" "$target_dir/node_modules/$item_name/$scoped_name"
+                done
+            else
+                rm -rf "$target_dir/node_modules/$item_name"
+                cp -a "$seed_item" "$target_dir/node_modules/$item_name"
+            fi
+        done
+    fi
 
     merge_seed_extension_metadata "$seed_dir" "$target_dir"
 
@@ -226,9 +247,9 @@ sync_seed_extension_items() {
     fi
 }
 
-sync_seed_extensions() {
-    local seed_dir="${OPENCLAW_SEED_EXTENSIONS_DIR:-/opt/openclaw-seed/extensions}"
-    local target_dir="$OPENCLAW_HOME/extensions"
+sync_seed_npm_installs() {
+    local seed_dir="${OPENCLAW_SEED_NPM_DIR:-/opt/openclaw-seed/npm}"
+    local target_dir="$OPENCLAW_HOME/npm"
     local seed_version_file
     local target_version_file="$target_dir/.seed-version"
     local global_sync="${SYNC_OPENCLAW_CONFIG:-true}"
@@ -238,7 +259,7 @@ sync_seed_extensions() {
 
     global_sync="$(echo "$global_sync" | tr '[:upper:]' '[:lower:]' | xargs)"
     if [ "$global_sync" = "false" ] || [ "$global_sync" = "0" ] || [ "$global_sync" = "no" ]; then
-        echo "ℹ️ 已关闭整体配置同步，跳过插件目录同步"
+        echo "ℹ️ 已关闭整体配置同步，跳过 npm 托管插件同步"
         return
     fi
 
@@ -246,12 +267,12 @@ sync_seed_extensions() {
     normalized_toggle="$(echo "$sync_on_start" | tr '[:upper:]' '[:lower:]' | xargs)"
 
     if [ "$normalized_toggle" = "false" ] || [ "$normalized_toggle" = "0" ] || [ "$normalized_toggle" = "no" ]; then
-        echo "ℹ️ 已关闭启动时插件同步"
+        echo "ℹ️ 已关闭启动时 npm 托管插件同步"
         return
     fi
 
     if [ ! -d "$seed_dir" ]; then
-        echo "ℹ️ 未找到插件 seed 目录，跳过同步: $seed_dir"
+        echo "ℹ️ 未找到 npm 托管插件 seed 目录，跳过同步: $seed_dir"
         return
     fi
 
@@ -260,7 +281,7 @@ sync_seed_extensions() {
 
     case "$normalized_mode" in
         missing)
-            echo "=== 同步内置插件（仅补充缺失项） ==="
+            echo "=== 同步 npm 托管插件（仅补充缺失项） ==="
             find "$seed_dir" -mindepth 1 -maxdepth 1 | while IFS= read -r seed_item; do
                 local item_name target_item
                 item_name="$(basename "$seed_item")"
@@ -273,7 +294,7 @@ sync_seed_extensions() {
             done
             ;;
         overwrite)
-            echo "=== 同步内置插件（强制覆盖） ==="
+            echo "=== 同步 npm 托管插件（强制覆盖） ==="
             sync_seed_extension_items "$seed_dir" "$target_dir"
             ;;
         seed-version|versioned|"")
@@ -292,7 +313,7 @@ sync_seed_extensions() {
                 return
             fi
 
-            echo "=== 同步内置插件（按 seed 版本） ==="
+            echo "=== 同步 npm 托管插件（按 seed 版本） ==="
             if [ -n "$current_version" ]; then
                 echo "当前插件 seed 版本: $current_version"
             else
@@ -306,7 +327,7 @@ sync_seed_extensions() {
             sync_seed_extension_items "$seed_dir" "$target_dir"
             ;;
         *)
-            echo "⚠️ 未识别的 SYNC_EXTENSIONS_MODE=$sync_mode，支持 missing / overwrite / seed-version，已跳过插件同步"
+            echo "⚠️ 未识别的 SYNC_EXTENSIONS_MODE=$sync_mode，支持 missing / overwrite / seed-version，已跳过 npm 托管插件同步"
             return
             ;;
     esac
@@ -315,7 +336,7 @@ sync_seed_extensions() {
         chown -R node:node "$target_dir" || true
     fi
 
-    echo "✅ 内置插件同步完成，模式: ${normalized_mode:-seed-version}"
+    echo "✅ npm 托管插件同步完成，模式: ${normalized_mode:-seed-version}"
 }
 
 is_root() {
@@ -516,12 +537,12 @@ QQBOT_RESERVED_FIELDS = {
 }
 
 CHANNEL_INSTALLS = {
-    'feishu': {'source': 'npm', 'spec': '@openclaw/feishu', 'installPath': '/home/node/.openclaw/extensions/feishu'},
-    'openclaw-lark': {'source': 'npm', 'spec': '@larksuite/openclaw-lark', 'installPath': '/home/node/.openclaw/extensions/openclaw-lark'},
-    'dingtalk': {'source': 'npm', 'spec': 'https://github.com/soimy/clawdbot-channel-dingtalk.git', 'installPath': '/home/node/.openclaw/extensions/dingtalk'},
-    'openclaw-qqbot': {'source': 'path', 'sourcePath': '/home/node/.openclaw/openclaw-qqbot', 'installPath': '/home/node/.openclaw/extensions/openclaw-qqbot'},
-    'napcat': {'source': 'path', 'sourcePath': '/home/node/.openclaw/extensions/napcat', 'installPath': '/home/node/.openclaw/extensions/napcat'},
-    'wecom': {'source': 'npm', 'spec': '@sunnoy/wecom', 'installPath': '/home/node/.openclaw/extensions/wecom'},
+    'feishu': {'source': 'npm', 'spec': '@openclaw/feishu', 'installPath': '/home/node/.openclaw/npm/node_modules/@openclaw/feishu'},
+    'openclaw-lark': {'source': 'npm', 'spec': '@larksuite/openclaw-lark', 'installPath': '/home/node/.openclaw/npm/node_modules/@larksuite/openclaw-lark'},
+    'dingtalk': {'source': 'npm', 'spec': '@soimy/dingtalk', 'installPath': '/home/node/.openclaw/npm/node_modules/@soimy/dingtalk'},
+    'openclaw-qqbot': {'source': 'npm', 'spec': '@tencent-connect/openclaw-qqbot', 'installPath': '/home/node/.openclaw/npm/node_modules/@tencent-connect/openclaw-qqbot'},
+    'napcat': {'source': 'path', 'sourcePath': '/home/node/.openclaw/npm/node_modules/napcat', 'installPath': '/home/node/.openclaw/npm/node_modules/napcat'},
+    'wecom': {'source': 'npm', 'spec': '@sunnoy/wecom', 'installPath': '/home/node/.openclaw/npm/node_modules/@sunnoy/wecom'},
 }
 
 
@@ -2131,8 +2152,10 @@ def migrate_qqbot_plugin_entry(ctx):
     if isinstance(legacy_install, dict):
         if not isinstance(official_install, dict):
             migrated_install = deepcopy(legacy_install)
-            migrated_install['sourcePath'] = '/home/node/.openclaw/openclaw-qqbot'
-            migrated_install['installPath'] = '/home/node/.openclaw/extensions/openclaw-qqbot'
+            migrated_install.pop('sourcePath', None)
+            migrated_install['source'] = 'npm'
+            migrated_install['spec'] = '@tencent-connect/openclaw-qqbot'
+            migrated_install['installPath'] = '/home/node/.openclaw/npm/node_modules/@tencent-connect/openclaw-qqbot'
             ctx.installs[official_plugin_id] = migrated_install
 
     ctx.installs.pop(legacy_plugin_id, None)
@@ -2604,7 +2627,7 @@ main() {
     ensure_directories
     ensure_config_persistence
     fix_permissions_if_needed
-    sync_seed_extensions
+    sync_seed_npm_installs
     install_agent_reach
     sync_config_with_env
     finalize_permissions
