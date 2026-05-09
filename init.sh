@@ -2044,6 +2044,14 @@ def apply_channel_rules(ctx):
         channel_label = channel_labels.get(channel_id, channel_id)
         has_env = all(ctx.env.get(key) for key in rule['required_envs'])
 
+        if channel_id == 'feishu' and ctx.feishu_plugin_enabled:
+            if has_env:
+                rule['sync'](ctx.channel('feishu'))
+                print('✅ 飞书官方插件配置同步')
+            ctx.disable_channel('feishu')
+            print('ℹ️ 已启用飞书官方插件，跳过旧版飞书插件启用')
+            continue
+
         if has_env:
             channel = ctx.channel(channel_id)
             rule['sync'](channel)
@@ -2095,16 +2103,19 @@ def apply_wecom_legacy_v1_compat(ctx):
 
 def apply_multi_account_plugin_state(ctx):
     feishu_accounts = get_feishu_accounts(ctx.channels.get('feishu'))
-    if ctx.has_feishu_accounts_env:
-        if feishu_accounts:
-            ctx.enable_channel('feishu', install=True)
-            print('✅ 已根据飞书多账号环境变量启用插件')
-        else:
-            ctx.disable_channel('feishu')
-            print('ℹ️ 飞书多账号环境变量未生成有效账号，保持插件禁用')
-    elif not ctx.has_feishu_any_env and not feishu_accounts:
+    if ctx.feishu_plugin_enabled:
         ctx.disable_channel('feishu')
-        print('ℹ️ 飞书未提供任何环境变量，保持插件禁用')
+    else:
+        if ctx.has_feishu_accounts_env:
+            if feishu_accounts:
+                ctx.enable_channel('feishu', install=True)
+                print('✅ 已根据飞书多账号环境变量启用插件')
+            else:
+                ctx.disable_channel('feishu')
+                print('ℹ️ 飞书多账号环境变量未生成有效账号，保持插件禁用')
+        elif not ctx.has_feishu_any_env and not feishu_accounts:
+            ctx.disable_channel('feishu')
+            print('ℹ️ 飞书未提供任何环境变量，保持插件禁用')
 
     dingtalk_accounts = get_dingtalk_accounts(ctx.channels.get('dingtalk'))
     if ctx.has_dingtalk_accounts_env:
@@ -2203,6 +2214,32 @@ def apply_feishu_plugin_switch(ctx):
         print('ℹ️ 未检测到飞书凭证且飞书官方插件开关未配置，已同时禁用官方插件和旧版飞书渠道')
 
 
+def cleanup_legacy_feishu_channel_for_official_plugin(ctx):
+    feishu = ctx.channels.get('feishu')
+    if not isinstance(feishu, dict):
+        return
+
+    accounts = feishu.get('accounts')
+    if isinstance(accounts, dict):
+        default_account = accounts.pop('default', None)
+        if isinstance(default_account, dict):
+            main_account = accounts.get('main')
+            if not isinstance(main_account, dict):
+                main_account = {}
+            accounts['main'] = deep_merge(default_account, main_account)
+
+        for account_id, account_cfg in accounts.items():
+            if is_valid_account_id(account_id) and is_feishu_account_config(account_cfg):
+                account_cfg.setdefault('enabled', True)
+
+        if feishu.get('defaultAccount') == 'default':
+            feishu['defaultAccount'] = 'main'
+
+    for key in FEISHU_ACCOUNT_FIELDS:
+        feishu.pop(key, None)
+    feishu['enabled'] = False
+
+
 def prune_known_stale_plugin_entries(ctx):
     # 这些 ID 来自旧配置或旧插件名；没有 install 记录时继续保留只会触发
     # Gateway 的 stale config warnings。
@@ -2228,8 +2265,11 @@ def sync_channels_and_plugins(ctx):
     apply_channel_rules(ctx)
     apply_wecom_legacy_v1_compat(ctx)
     merge_feishu_accounts_from_env(ctx.channels, ctx.env)
-    # 环境同步后再次标准化飞书结构，确保冗余字段被移除
-    normalize_feishu_config(ctx.channels)
+    if ctx.feishu_plugin_enabled:
+        cleanup_legacy_feishu_channel_for_official_plugin(ctx)
+    else:
+        # 环境同步后再次标准化飞书结构，确保冗余字段被移除
+        normalize_feishu_config(ctx.channels)
     
     merge_dingtalk_accounts_from_env(ctx.channels, ctx.env)
     # 环境同步后再次标准化钉钉结构，确保冗余字段被移除
