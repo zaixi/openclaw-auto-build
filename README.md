@@ -30,16 +30,7 @@
 
 ### 3. 自定义配置
 
-编辑 `build.conf` 配置镜像加速源：
-
-```bash
-# npm 镜像源
-OPENCLAW_NPM_REGISTRY="https://registry.npmmirror.com"
-# pip 镜像源
-OPENCLAW_PIP_INDEX_URL="https://pypi.npmmirror.com"
-```
-
-> **注意：** 本镜像的 apt/npm/pip 包和预装扩展均为 [Dockerfile](Dockerfile) 内硬编码，如需修改请直接编辑 Dockerfile。
+本镜像的 apt/npm/pip 包和预装扩展均为 [Dockerfile](Dockerfile) 内硬编码，如需修改请直接编辑 Dockerfile。
 
 ### 4. 启用 Action
 
@@ -89,9 +80,7 @@ seed 中的依赖版本优先生效，运行时额外安装插件的 npm 元数�
 | 参数 | 来源 | 说明 |
 |------|------|------|
 | `OPENCLAW_VERSION` | Workflow 自动检测 | OpenClaw npm 版本号 |
-| `OPENCLAW_NPM_REGISTRY` | build.conf | npm registry 镜像源 |
-| `OPENCLAW_PIP_INDEX_URL` | build.conf | pip index 镜像源 |
-| `OPENCLAW_SEED_VERSION` | build.conf / Docker build arg | 插件 seed 版本标记，默认按 OpenClaw 版本和 seed 内容生成 |
+| `OPENCLAW_SEED_VERSION` | Docker build arg | 插件 seed 版本标记，默认按 OpenClaw 版本和 seed 内容生成 |
 
 ## 预装内容
 

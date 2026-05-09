@@ -13,8 +13,6 @@ ENV PATH="/usr/local/bin:$PATH" \
 
 # ──────────────── 构建参数（来自 build.yml）────────────────
 ARG OPENCLAW_VERSION="latest"
-ARG OPENCLAW_NPM_REGISTRY="https://registry.npmmirror.com"
-ARG OPENCLAW_PIP_INDEX_URL="https://pypi.npmmirror.com"
 ARG OPENCLAW_SEED_VERSION=""
 
 # 1. 合并系统依赖安装与全局工具安装，并清理缓存
@@ -49,13 +47,13 @@ RUN apt-get update && \
     # 配置 git 使用 HTTPS 替代 SSH
     git config --system url."https://github.com/".insteadOf ssh://git@github.com/ && \
     # 设置 npm 镜像并安装全局包
-    npm config set registry "$OPENCLAW_NPM_REGISTRY" && \
-    npm install -g openclaw@${OPENCLAW_VERSION} opencode-ai@latest clawhub claude-code playwright playwright-extra puppeteer-extra-plugin-stealth @steipete/bird && \
+    npm config set registry https://registry.npmmirror.com && \
+    npm install -g openclaw@${OPENCLAW_VERSION:-latest} opencode-ai@latest clawhub claude-code playwright playwright-extra puppeteer-extra-plugin-stealth @steipete/bird && \
     # 安装 uv 和 qmd
     curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh && \
     # 建立 python3 -> python 链接并安装 websockify
     ln -sf /usr/local/bin/python3 /usr/local/bin/python && \
-    /usr/local/bin/python3 -m pip install --no-cache-dir -i "$OPENCLAW_PIP_INDEX_URL" websockify && \
+    /usr/local/bin/python3 -m pip install --no-cache-dir websockify && \
     npm install -g @tobilu/qmd@1.1.6 && \
     # 安装 Playwright 浏览器依赖
     npx playwright install chromium --with-deps && \
